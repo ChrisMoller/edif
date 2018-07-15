@@ -1,3 +1,30 @@
+Makefile
+Makefile.in
+aclocal.m4
+ar-lib
+autom4te.cache/
+compile
+config.guess
+config.h
+config.h.in
+config.h.in~
+config.log
+config.status
+config.sub
+configure
+depcomp
+install-sh
+libtool
+ltmain.sh
+m4/
+missing
+src/.apl.history
+src/.deps/
+src/.libs/
+src/Makefile
+src/Makefile.in
+stamp-h1
+
 # Prerequisites
 *.d
 
