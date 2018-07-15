@@ -52,3 +52,6 @@ workspace, you probably shouldn't do it.
 Also, I've no idea if Windows or any Linux distribution other than 
 Fedora has a /var directory, so using this directory may be non-portable.
 
+So far as I can tell, edif doesn't interfere with Elias Mårtenson's 
+emacs APL mode, but I haven't thoroughly tested that.
+
