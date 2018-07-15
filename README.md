@@ -24,6 +24,9 @@ will invoke emacs with a fairly small window, a light yellow background, and
 using the DejaVu Sans Mono-10 font.  (That's also the default if no EDIF
 variable is found.)
 
+edif has only been tested with emacs and vi.
+
+
 Future work may also allow edif to edit APL variables and operators, but no
 guarantees I'll ever get around to it.
 
