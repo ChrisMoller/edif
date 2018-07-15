@@ -26,3 +26,9 @@ variable is found.)
 
 Future work may also allow edif to edit APL variables and operators, but no
 guarantees I'll ever get around to it.
+
+edif may be included in the workspace with:
+
+	'libedif.so' ⎕fx 'edif'
+
+
