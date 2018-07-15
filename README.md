@@ -1,8 +1,5 @@
-# edif
-A GNU APL extension that allows the use of external editors.
-
-edif adds a function to GNU APL that allows the use to use external
-editors from within an APL session.
+edif is a GNU APL native function that allows the use of external editors
+from within an APL session.
 
 Usage:
 
@@ -34,4 +31,24 @@ edif may be included in the workspace with:
 
 	'libedif.so' ⎕fx 'edif'
 
+
+
+Implimentation note:
+
+edif works by storing an editable version of the specified function in:
+
+/var/run/user/<uid>/<pid>/<name>.apl  
+
+where <uid> is the user's userid, <pid> is the process id of the APL 
+session, and <name> is the function name.  This allows multiple users 
+each to have multiple simultaneous APL sessions with workspaces with 
+identical names.  No locking is done by edif and I've no idea if APL 
+itself has any protection against a writable workspace being open in 
+multiple simultaneous sessions, but it opens up the possibility that 
+you can hose the workspace.  So while, as far as edif is concerned 
+you can have multiple simultaneous sessions aimed at the same lib0 
+workspace, you probably shouldn't do it.
+
+Also, I've no idea if Windows or any Linux distribution other than 
+Fedora has a /var directory, so using this directory may be non-portable.
 
