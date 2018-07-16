@@ -161,6 +161,10 @@ eval_EB (const char *edif, Value_P B)
 	tfile.open (fn, ios::out);
 	val->print_properties (tfile, 0, true);
 	tfile << endl << "========" << endl;
+#if 0
+	val->print_boxed (tfile);
+	tfile << endl << "========" << endl;
+#endif
 	val->print (tfile);
 	tfile.close ();
 	char *buf;
