@@ -107,7 +107,7 @@ NC_SHARED_VAR       =  5,   ///< shared variable.
      ***/
 
 static Token
-eval_XB (const char *edif, Value_P B)
+eval_EB (const char *edif, Value_P B)
 {
   if (B->is_char_string ()) {
     const UCS_string  ustr = B->get_UCS_ravel();
@@ -179,14 +179,30 @@ eval_B(Value_P B)
   static char *edif;
   if (!edif) edif = getenv ("EDIF");
   if (!edif) edif = strdup (EDIF_DEFAULT);
-  return eval_XB (edif, B);
+  return eval_EB (edif, B);
 }
 
 static Token
 eval_AB(Value_P A, Value_P B)
 {
-  cerr << "in eval_AB()\n";
-  return Token(TOK_APL_VALUE1, Str0_0 (LOC));
+  if (A->is_char_string ()) {
+    const UCS_string  ustr = A->get_UCS_ravel();
+    UTF8_string edif(ustr);
+    if (edif.c_str () && *(edif.c_str ()))
+      return eval_EB (edif.c_str (), B);
+    else {
+      UCS_string ucs("Invalid editor specification.");
+      Value_P Z (ucs, LOC);
+      Z->check_value(LOC);
+      return Token(TOK_APL_VALUE1, Z);
+    }
+  }
+  else {
+    UCS_string ucs("The editor specification must be a string.");
+    Value_P Z (ucs, LOC);
+    Z->check_value(LOC);
+    return Token(TOK_APL_VALUE1, Z);
+  }
 }
 
 #if 0
