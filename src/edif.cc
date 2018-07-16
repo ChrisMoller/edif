@@ -160,10 +160,18 @@ eval_EB (const char *edif, Value_P B)
 	ofstream tfile;
 	tfile.open (fn, ios::out);
 	val->print_properties (tfile, 0, true);
-	tfile << endl << "========" << endl;
+
+#define VBL_SEPARATOR	"========"
+#define VBL_RANK	"Rank:"
+#define VBL_SHAPE	"Shape:"
+#define VBL_TYPE	"Type:"
+#define VBL_NUMERIC	"numeric"
+#define VBL_CHARACTER	"character"
+
+	tfile << endl << VBL_SEPARATOR << endl;
 #if 0
 	val->print_boxed (tfile);
-	tfile << endl << "========" << endl;
+	tfile << endl << SEPARATOR << endl;
 #endif
 	val->print (tfile);
 	tfile.close ();
@@ -171,6 +179,53 @@ eval_EB (const char *edif, Value_P B)
 	asprintf (&buf, "%s %s", edif, fn);
 	system (buf);
 	if (buf) free (buf);
+
+	ifstream ufile;
+	ufile.open (fn, ios::in);
+	if (ufile.is_open ()) {
+	  bool separator_found = false;
+	  string line;
+	  int rank   = -1;
+	  int *shape = NULL;
+	  int count = 1;
+	  CellType celltype = CT_NONE;
+	  while (getline (ufile, line)) {
+	    if (!separator_found) {
+	      if (string::npos != line.find (VBL_SEPARATOR))
+		separator_found = true;
+	      else if (string::npos != line.find (VBL_RANK)) {
+		sscanf (line.c_str () + strlen (VBL_RANK), " %d ", &rank);
+		shape = new int[rank];
+	      }
+	      else if (string::npos != line.find (VBL_SHAPE)) {
+		int i;
+		int o = strlen (VBL_SHAPE);
+		int n;
+		for (i = 0; i < rank; i++) {
+		  sscanf (line.c_str () + o, " %d%n ", &shape[i], &n);
+		  o += n;
+		  count *= shape[i];
+		}
+	      }
+	      else if (string::npos != line.find (VBL_TYPE)) {
+		if (string::npos != line.find (VBL_NUMERIC))
+		  celltype = CT_NUMERIC;
+		else if (string::npos != line.find (VBL_CHARACTER))
+		  celltype = CT_CHAR;
+	      }
+	    }
+	    else {
+	      // cerr << "s found count = " << count << endl;
+	      //	cerr << "ct = " << celltype << endl;
+	      //	  cerr << "shape[" << i << "] = " << shape[i] << endl;
+	      //	cerr << "rank " << rank << endl;
+	      int o = 0;
+	      int n;
+	      sscanf (line.c_str () + o, " %d%n ", &shape[i], &n);
+	    }
+	  }
+	  ufile.close ();
+	}
       }
     }
     
@@ -181,7 +236,7 @@ eval_EB (const char *edif, Value_P B)
       if ((path = opendir (dir)) != NULL) {
 	while ((ent = readdir (path)) != NULL) {
 	  if (!strncmp (ent->d_name, base_name.c_str (),
-			strlen (base_name.c_str ()))) {
+			base_name.size ())) {
 	    char *lfn;
 	    asprintf (&lfn, "%s/%s", dir, ent->d_name);
 	    unlink (lfn);
