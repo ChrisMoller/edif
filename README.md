@@ -21,7 +21,26 @@ will invoke emacs with a fairly small window, a light yellow background, and
 using the DejaVu Sans Mono-10 font.  (That's also the default if no EDIF
 variable is found.)
 
-edif has only been tested with emacs and vi.
+There's also a dyadic form:
+
+	'editor' edif 'function_name'
+
+that lets you specify the editor you want, for example:
+
+	'vi' edif 'fubar'
+
+will open function fubar in vi.  Any command-line arguments you provide will
+also be passed to the editor, so:
+
+	'gvim -bg red' edif 'fubar'
+
+will do as you expect it to and give you eye strain.
+
+The dyadic form is a one-shot thing--edif doesn't remember editors
+specified this way and the monadic form will go back to using the
+default or environment-specified editor.
+
+edif has been tested only with emacs, vi, and gvim.
 
 
 Future work may also allow edif to edit APL variables and operators, but no
