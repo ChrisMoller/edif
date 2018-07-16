@@ -157,8 +157,25 @@ eval_EB (const char *edif, Value_P B)
 			   true);		// tolerant
       }
     }
+
+    {
+      DIR *path;
+      struct dirent *ent;
+      if ((path = opendir (dir)) != NULL) {
+	/* print all the files and directories within directory */
+	while ((ent = readdir (path)) != NULL) {
+	  if (!strncmp (ent->d_name, base_name.c_str (),
+			strlen (base_name.c_str ()))) {
+	    char *lfn;
+	    asprintf (&lfn, "%s/%s", dir, ent->d_name);
+	    unlink (lfn);
+	    free (lfn);
+	  }
+	}
+	closedir (path);
+      } 
+    }
     
-    unlink (fn);
     if (fn) free (fn);
     rmdir (dir);
     if (dir) free (dir);
