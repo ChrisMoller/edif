@@ -85,7 +85,6 @@ get_fcn (const char *fn, const char *base, Value_P B)
     tfile.close ();
   }
   else {
-    cerr << "opening header " << base << endl;
     ofstream tfile;
     tfile.open (fn, ios::out);
     tfile << base << endl;
@@ -119,10 +118,6 @@ eval_EB (const char *edif, Value_P B)
     mkdir (dir, 0700);
     char *fn = NULL;
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
-#if 0
-    char *edif = getenv ("EDIF");
-    if (!edif) edif = strdup (EDIF_DEFAULT);
-#endif
 
     APL_Integer nc = Quad_NC::get_NC(ustr);
     if (nc == NC_FUNCTION ||
@@ -157,12 +152,29 @@ eval_EB (const char *edif, Value_P B)
 			   true);		// tolerant
       }
     }
+    else if (nc == NC_VARIABLE) {
+      Symbol *symbol = Workspace::lookup_existing_symbol(ustr);
+      if (symbol) {
+	Value_P Z = symbol->get_value();
+	Value *val = Z.get ();
+	ofstream tfile;
+	tfile.open (fn, ios::out);
+	val->print_properties (tfile, 0, true);
+	tfile << endl << "========" << endl;
+	val->print (tfile);
+	tfile.close ();
+	char *buf;
+	asprintf (&buf, "%s %s", edif, fn);
+	system (buf);
+	if (buf) free (buf);
+      }
+    }
+    
 
     {
       DIR *path;
       struct dirent *ent;
       if ((path = opendir (dir)) != NULL) {
-	/* print all the files and directories within directory */
 	while ((ent = readdir (path)) != NULL) {
 	  if (!strncmp (ent->d_name, base_name.c_str (),
 			strlen (base_name.c_str ()))) {
