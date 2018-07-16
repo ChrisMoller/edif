@@ -107,7 +107,7 @@ NC_SHARED_VAR       =  5,   ///< shared variable.
      ***/
 
 static Token
-eval_B(Value_P B)
+eval_XB (const char *edif, Value_P B)
 {
   if (B->is_char_string ()) {
     const UCS_string  ustr = B->get_UCS_ravel();
@@ -119,8 +119,10 @@ eval_B(Value_P B)
     mkdir (dir, 0700);
     char *fn = NULL;
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
+#if 0
     char *edif = getenv ("EDIF");
     if (!edif) edif = strdup (EDIF_DEFAULT);
+#endif
 
     APL_Integer nc = Quad_NC::get_NC(ustr);
     if (nc == NC_FUNCTION ||
@@ -171,7 +173,15 @@ eval_B(Value_P B)
   }
 }
 
-#if 0
+static Token
+eval_B(Value_P B)
+{
+  static char *edif;
+  if (!edif) edif = getenv ("EDIF");
+  if (!edif) edif = strdup (EDIF_DEFAULT);
+  return eval_XB (edif, B);
+}
+
 static Token
 eval_AB(Value_P A, Value_P B)
 {
@@ -179,6 +189,7 @@ eval_AB(Value_P A, Value_P B)
   return Token(TOK_APL_VALUE1, Str0_0 (LOC));
 }
 
+#if 0
 static Token
 eval_XB(Value_P A, Value_P B, const NativeFunction * caller)
 {
@@ -199,8 +210,8 @@ get_function_mux(const char * function_name)
 {
    if (!strcmp(function_name, "get_signature"))   return (void *)&get_signature;
    if (!strcmp(function_name, "eval_B"))          return (void *)&eval_B;
-#if 0
    if (!strcmp(function_name, "eval_AB"))         return (void *)&eval_AB;
+#if 0
    if (!strcmp(function_name, "eval_XB"))         return (void *)&eval_XB;
    if (!strcmp(function_name, "eval_AXB"))        return (void *)&eval_AXB;
 #endif
