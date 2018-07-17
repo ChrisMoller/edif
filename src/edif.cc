@@ -29,16 +29,85 @@
 #include<fstream>
 #include<string>
 
+#if 0
 #include "native/template.hh"
+#else
+#include "Value.icc"
+#include "Native_interface.hh"
+
+class NativeFunction;
+
+extern "C" void * get_function_mux(const char * function_name);
+static Token eval_ident_Bx(Value_P B, Axis x, const NativeFunction * caller);
+static Token eval_fill_B(Value_P B, const NativeFunction * caller);
+static Token eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller);
+
+Token
+eval_fill_B(Value_P B, const NativeFunction * caller)
+{
+UCS_string ucs("eval_fill_B() called");
+Value_P Z(ucs, LOC);
+   Z->check_value(LOC);
+   return Token(TOK_APL_VALUE1, Z);
+}
+
+Token
+eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller)
+{
+UCS_string ucs("eval_fill_B() called");
+Value_P Z(ucs, LOC);
+   Z->check_value(LOC);
+   return Token(TOK_APL_VALUE1, Z);
+}
+
+Token
+eval_ident_Bx(Value_P B, Axis x, const NativeFunction * caller)
+{
+UCS_string ucs("eval_ident_Bx() called");
+Value_P Z(ucs, LOC);
+   Z->check_value(LOC);
+   return Token(TOK_APL_VALUE1, Z);
+}
+#endif
 
 #define EDIF_DEFAULT \
   "emacs --geometry=40x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
 
 using namespace std;
 
+char *dir = NULL;
+
+static bool
+close_fun (Cause cause, const NativeFunction * caller)
+{
+  if (dir) {
+    DIR *path;
+    struct dirent *ent;
+    if ((path = opendir (dir)) != NULL) {
+      while ((ent = readdir (path)) != NULL) {
+	char *lfn;
+	asprintf (&lfn, "%s/%s", dir, ent->d_name);
+	unlink (lfn);
+	free (lfn);
+      }
+      closedir (path);
+    } 
+
+    rmdir (dir);
+    free (dir);
+    dir = NULL;
+  }
+  return true;
+}
+
 Fun_signature
 get_signature()
 {
+  asprintf (&dir, "/var/run/user/%d/%d",
+	    (int)getuid (), (int)getpid ());
+  mkdir (dir, 0700);
+  cerr << "opening " << dir << endl;
+
   return SIG_Z_A_F2_B;
 }
 
@@ -110,8 +179,6 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
     closedir (path);
   } 
   if (fn) free (fn);
-  rmdir (dir);
-  if (dir) free (dir);
 }
 
     /***
@@ -134,10 +201,8 @@ eval_EB (const char *edif, Value_P B)
     const UCS_string  ustr = B->get_UCS_ravel();
     UTF8_string base_name(ustr);
 
-    char *dir = NULL;
-    asprintf (&dir, "/var/run/user/%d/%d",
-	      (int)getuid (), (int)getpid ());
-    mkdir (dir, 0700);
+#if 0
+#endif
     char *fn = NULL;
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
 
@@ -175,22 +240,28 @@ eval_EB (const char *edif, Value_P B)
 			     true);		// tolerant
 	  cleanup (dir, base_name, fn);
 	}
+	else {
+	  UCS_string ucs ("Error opening working file.");
+	  Value_P Z (ucs, LOC);
+	  Z->check_value (LOC);
+	  return Token (TOK_APL_VALUE1, Z);
+	}
       }
       break;
     case NC_VARIABLE:
       {
-	UCS_string ucs("Variable editing not yet implemented.");
-	Value_P Z(ucs, LOC);
-	Z->check_value(LOC);
-	return Token(TOK_APL_VALUE1, Z);
+	UCS_string ucs ("Variable editing not yet implemented.");
+	Value_P Z (ucs, LOC);
+	Z->check_value (LOC);
+	return Token (TOK_APL_VALUE1, Z);
       }
       break;
     default:
       {
-	UCS_string ucs("Unknown editing type requested.");
-	Value_P Z(ucs, LOC);
-	Z->check_value(LOC);
-	return Token(TOK_APL_VALUE1, Z);
+	UCS_string ucs ("Unknown editing type requested.");
+	Value_P Z (ucs, LOC);
+	Z->check_value (LOC);
+	return Token (TOK_APL_VALUE1, Z);
       }
       break;
     }
@@ -198,15 +269,15 @@ eval_EB (const char *edif, Value_P B)
     return Token(TOK_APL_VALUE1, Str0_0 (LOC));	// in case nothing works
   }
   else {
-    UCS_string ucs("Character string argument required.");
-    Value_P Z(ucs, LOC);
-    Z->check_value(LOC);
-    return Token(TOK_APL_VALUE1, Z);
+    UCS_string ucs ("Character string argument required.");
+    Value_P Z (ucs, LOC);
+    Z->check_value (LOC);
+    return Token (TOK_APL_VALUE1, Z);
   }
 }
 
 static Token
-eval_B(Value_P B)
+eval_B (Value_P B)
 {
   static char *edif;
   if (!edif) edif = getenv ("EDIF");
@@ -215,56 +286,58 @@ eval_B(Value_P B)
 }
 
 static Token
-eval_AB(Value_P A, Value_P B)
+eval_AB (Value_P A, Value_P B)
 {
   if (A->is_char_string ()) {
     const UCS_string  ustr = A->get_UCS_ravel();
-    UTF8_string edif(ustr);
+    UTF8_string edif (ustr);
     if (edif.c_str () && *(edif.c_str ()))
       return eval_EB (edif.c_str (), B);
     else {
-      UCS_string ucs("Invalid editor specification.");
+      UCS_string ucs ("Invalid editor specification.");
       Value_P Z (ucs, LOC);
-      Z->check_value(LOC);
-      return Token(TOK_APL_VALUE1, Z);
+      Z->check_value (LOC);
+      return Token (TOK_APL_VALUE1, Z);
     }
   }
   else {
-    UCS_string ucs("The editor specification must be a string.");
+    UCS_string ucs ("The editor specification must be a string.");
     Value_P Z (ucs, LOC);
-    Z->check_value(LOC);
-    return Token(TOK_APL_VALUE1, Z);
+    Z->check_value (LOC);
+    return Token (TOK_APL_VALUE1, Z);
   }
 }
 
 #if 0
 static Token
-eval_XB(Value_P A, Value_P B, const NativeFunction * caller)
+eval_XB (Value_P A, Value_P B, const NativeFunction * caller)
 {
   cerr << "in eval_XB()\n";
-  return Token(TOK_APL_VALUE1, Str0_0 (LOC));
+  return Token (TOK_APL_VALUE1, Str0_0 (LOC));
 }
 
 static Token
-eval_AXB(Value_P A, Value_P X, Value_P B)
+eval_AXB (Value_P A, Value_P X, Value_P B)
 {
   cerr << "in eval_AXB()\n";
-  return Token(TOK_APL_VALUE1, Str0_0 (LOC));
+  return Token (TOK_APL_VALUE1, Str0_0 (LOC));
 }
 #endif
   
 void *
-get_function_mux(const char * function_name)
+get_function_mux (const char * function_name)
 {
-   if (!strcmp(function_name, "get_signature"))   return (void *)&get_signature;
-   if (!strcmp(function_name, "eval_B"))          return (void *)&eval_B;
-   if (!strcmp(function_name, "eval_AB"))         return (void *)&eval_AB;
+   if (!strcmp (function_name, "get_signature")) return (void *)&get_signature;
+   if (!strcmp (function_name, "eval_B"))        return (void *)&eval_B;
+   if (!strcmp (function_name, "eval_AB"))       return (void *)&eval_AB;
 #if 0
-   if (!strcmp(function_name, "eval_XB"))         return (void *)&eval_XB;
-   if (!strcmp(function_name, "eval_AXB"))        return (void *)&eval_AXB;
+   if (!strcmp (function_name, "eval_XB"))       return (void *)&eval_XB;
+   if (!strcmp (function_name, "eval_AXB"))      return (void *)&eval_AXB;
 #endif
-   if (!strcmp(function_name, "eval_ident_Bx"))   return (void *)&eval_ident_Bx;
-   if (!strcmp(function_name, "eval_fill_B"))     return (void *)&eval_fill_B;
-   if (!strcmp(function_name, "eval_fill_AB"))    return (void *)&eval_fill_AB;
+   if (!strcmp (function_name, "eval_ident_Bx")) return (void *)&eval_ident_Bx;
+   if (!strcmp (function_name, "eval_fill_B"))   return (void *)&eval_fill_B;
+   if (!strcmp (function_name, "eval_fill_AB"))  return (void *)&eval_fill_AB;
+   if (!strcmp (function_name, "close_fun"))
+     return reinterpret_cast<void *>(&close_fun);
    return 0;
 }
