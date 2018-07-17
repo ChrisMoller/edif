@@ -92,6 +92,28 @@ get_fcn (const char *fn, const char *base, Value_P B)
   }
 }
 
+static void
+cleanup (char *dir, UTF8_string base_name, char *fn)
+{
+  DIR *path;
+  struct dirent *ent;
+  if ((path = opendir (dir)) != NULL) {
+    while ((ent = readdir (path)) != NULL) {
+      if (!strncmp (ent->d_name, base_name.c_str (),
+		    base_name.size ())) {
+	char *lfn;
+	asprintf (&lfn, "%s/%s", dir, ent->d_name);
+	unlink (lfn);
+	free (lfn);
+      }
+    }
+    closedir (path);
+  } 
+  if (fn) free (fn);
+  rmdir (dir);
+  if (dir) free (dir);
+}
+
     /***
 	from NamedObject.hh:
 
@@ -120,138 +142,60 @@ eval_EB (const char *edif, Value_P B)
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
 
     APL_Integer nc = Quad_NC::get_NC(ustr);
-    if (nc == NC_FUNCTION ||
-	nc == NC_UNUSED_USER_NAME ||
-	nc == NC_INVALID) {
-      get_fcn (fn, base_name.c_str (), B);
-      char *buf;
-      asprintf (&buf, "%s %s", edif, fn);
-      system (buf);
-      if (buf) free (buf);
-
-      ifstream tfile;
-      tfile.open (fn, ios::in);
-      UCS_string ucs;
-      if (tfile.is_open ()) {
-	string line;
-	while (getline (tfile, line)) {
-	  ucs.append_utf8 (line.c_str ());
-	  ucs.append(UNI_ASCII_LF);
-	}
-	tfile.close ();
-	int error_line = 0;
-	UCS_string creator (base_name);
-	creator.append (UNI_ASCII_COLON);
-	creator.append_number (0);
-	UTF8_string creator_utf8(creator);
-	UserFunction::fix (ucs,			// text
-			   error_line,		// err_line
-			   false,		// keep_existing
-			   LOC,			// loc
-			   creator_utf8,	// creator
-			   true);		// tolerant
-      }
-    }
-    else if (nc == NC_VARIABLE) {
-      Symbol *symbol = Workspace::lookup_existing_symbol(ustr);
-      if (symbol) {
-	Value_P Z = symbol->get_value();
-	Value *val = Z.get ();
-	ofstream tfile;
-	tfile.open (fn, ios::out);
-	val->print_properties (tfile, 0, true);
-
-#define VBL_SEPARATOR	"========"
-#define VBL_RANK	"Rank:"
-#define VBL_SHAPE	"Shape:"
-#define VBL_TYPE	"Type:"
-#define VBL_NUMERIC	"numeric"
-#define VBL_CHARACTER	"character"
-
-	tfile << endl << VBL_SEPARATOR << endl;
-#if 0
-	val->print_boxed (tfile);
-	tfile << endl << SEPARATOR << endl;
-#endif
-	val->print (tfile);
-	tfile.close ();
+    switch (nc) {
+    case NC_FUNCTION:
+    case NC_UNUSED_USER_NAME:
+      {
+	get_fcn (fn, base_name.c_str (), B);
 	char *buf;
 	asprintf (&buf, "%s %s", edif, fn);
 	system (buf);
 	if (buf) free (buf);
 
-	ifstream ufile;
-	ufile.open (fn, ios::in);
-	if (ufile.is_open ()) {
-	  bool separator_found = false;
+	ifstream tfile;
+	tfile.open (fn, ios::in);
+	UCS_string ucs;
+	if (tfile.is_open ()) {
 	  string line;
-	  int rank   = -1;
-	  int *shape = NULL;
-	  int count = 1;
-	  CellType celltype = CT_NONE;
-	  while (getline (ufile, line)) {
-	    if (!separator_found) {
-	      if (string::npos != line.find (VBL_SEPARATOR))
-		separator_found = true;
-	      else if (string::npos != line.find (VBL_RANK)) {
-		sscanf (line.c_str () + strlen (VBL_RANK), " %d ", &rank);
-		shape = new int[rank];
-	      }
-	      else if (string::npos != line.find (VBL_SHAPE)) {
-		int i;
-		int o = strlen (VBL_SHAPE);
-		int n;
-		for (i = 0; i < rank; i++) {
-		  sscanf (line.c_str () + o, " %d%n ", &shape[i], &n);
-		  o += n;
-		  count *= shape[i];
-		}
-	      }
-	      else if (string::npos != line.find (VBL_TYPE)) {
-		if (string::npos != line.find (VBL_NUMERIC))
-		  celltype = CT_NUMERIC;
-		else if (string::npos != line.find (VBL_CHARACTER))
-		  celltype = CT_CHAR;
-	      }
-	    }
-	    else {
-	      // cerr << "s found count = " << count << endl;
-	      //	cerr << "ct = " << celltype << endl;
-	      //	  cerr << "shape[" << i << "] = " << shape[i] << endl;
-	      //	cerr << "rank " << rank << endl;
-	      int o = 0;
-	      int n;
-	      sscanf (line.c_str () + o, " %d%n ", &shape[i], &n);
-	    }
+	  while (getline (tfile, line)) {
+	    ucs.append_utf8 (line.c_str ());
+	    ucs.append(UNI_ASCII_LF);
 	  }
-	  ufile.close ();
+	  tfile.close ();
+	  int error_line = 0;
+	  UCS_string creator (base_name);
+	  creator.append (UNI_ASCII_COLON);
+	  creator.append_number (0);
+	  UTF8_string creator_utf8(creator);
+	  UserFunction::fix (ucs,		// text
+			     error_line,	// err_line
+			     false,		// keep_existing
+			     LOC,		// loc
+			     creator_utf8,	// creator
+			     true);		// tolerant
+	  cleanup (dir, base_name, fn);
 	}
       }
+      break;
+    case NC_VARIABLE:
+      {
+	UCS_string ucs("Variable editing not yet implemented.");
+	Value_P Z(ucs, LOC);
+	Z->check_value(LOC);
+	return Token(TOK_APL_VALUE1, Z);
+      }
+      break;
+    default:
+      {
+	UCS_string ucs("Unknown editing type requested.");
+	Value_P Z(ucs, LOC);
+	Z->check_value(LOC);
+	return Token(TOK_APL_VALUE1, Z);
+      }
+      break;
     }
-    
 
-    {
-      DIR *path;
-      struct dirent *ent;
-      if ((path = opendir (dir)) != NULL) {
-	while ((ent = readdir (path)) != NULL) {
-	  if (!strncmp (ent->d_name, base_name.c_str (),
-			base_name.size ())) {
-	    char *lfn;
-	    asprintf (&lfn, "%s/%s", dir, ent->d_name);
-	    unlink (lfn);
-	    free (lfn);
-	  }
-	}
-	closedir (path);
-      } 
-    }
-    
-    if (fn) free (fn);
-    rmdir (dir);
-    if (dir) free (dir);
-    
-    return Token(TOK_APL_VALUE1, Str0_0 (LOC));
+    return Token(TOK_APL_VALUE1, Str0_0 (LOC));	// in case nothing works
   }
   else {
     UCS_string ucs("Character string argument required.");
