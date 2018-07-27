@@ -1,13 +1,12 @@
 
-lib_LTLIBRARIES = libedif.la
-noinst_LTLIBRARIES =
+lib_LTLIBRARIES = libedif.la libedif2.la
 
 libedif_la_SOURCES = edif.cc
-#libedif_la_SOURCES = edif.cc edif.hh
-
-#libedif_la_LDFLAGS = -L/usr/local/lib/apl -lapl
 libedif_la_CPPFLAGS = -I$(APL_SOURCES)
-#libedif_la_CPPFLAGS = -I$(APL_SOURCES) $(PLPLOT_CFLAGS)
 
-#libedif_la_LIBADD = $(PLPLOT_LIBS)
+libedif2_la_SOURCES = edif2.cc edif2.hh
+libedif2_la_CPPFLAGS = -I$(APL_SOURCES)
+
+noinst_LTLIBRARIES =
+
 
