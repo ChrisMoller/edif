@@ -67,6 +67,12 @@ and edif2 with:
 Of course, you can use any function names you like and, as long as you use
 different names, both versions can be used at the same time.
 
+So far as I can tell, edif doesn't interfere with Elias Mårtenson's 
+emacs APL mode, but I haven't thoroughly tested that.
+
+By the way, "edif" is short for "editor interface."
+
+
 
 Implimentation note:
 
@@ -87,7 +93,4 @@ workspace, you probably shouldn't do it.
 
 Also, I've no idea if Windows or any Linux distribution other than 
 Fedora has a /var directory, so using this directory may be non-portable.
-
-So far as I can tell, edif doesn't interfere with Elias Mårtenson's 
-emacs APL mode, but I haven't thoroughly tested that.
 
