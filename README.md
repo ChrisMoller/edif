@@ -42,46 +42,36 @@ edif will look for the environment variable EDIF and will use the string
 specified by that variable as the command line to invoke the chosen editor.
 For example:
 
-   export EDIF="emacs --geometry=40x20  -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
+   export EDIF2="nano"
 
-will invoke emacs with a fairly small window, a light yellow background, and
-using the DejaVu Sans Mono-10 font.  (That's also the default if no EDIF
-variable is found.)
+will cause edif to nefault to using the nano editor.  Similarly, the EDIF2
+variable affects the default edif2 editor.
 
-There's also a dyadic form:
+edif has been tested with emacs, vi, and nano; edif2 with emacs and gvim.
+The default editor for edif is vi; the default for edif2 is
 
-	'editor' edif 'function_name'
-
-that lets you specify the editor you want, for example:
-
-	'vi' edif 'fubar'
-
-will open function fubar in vi.  Any command-line arguments you provide will
-also be passed to the editor, so:
-
-	'gvim -bg red' edif 'fubar'
-
-will do as you expect it to and give you eye strain.
+   "emacs --geometry=40x20  -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
 
 The dyadic form is a one-shot thing--edif doesn't remember editors
 specified this way and the monadic form will go back to using the
 default or environment-specified editor.
 
-edif has been tested only with emacs, vi, and gvim.
-
-
-Future work may also allow edif to edit APL variables and operators, but no
-guarantees I'll ever get around to it.
-
 edif may be included in the workspace with:
 
 	'libedif.so' ⎕fx 'edif'
+	
+and edif2 with:
 
+	'libedif2.so' ⎕fx 'edif2'
+
+Of course, you can use any function names you like and, as long as you use
+different names, both versions can be used at the same time.
 
 
 Implimentation note:
 
-edif works by storing an editable version of the specified function in:
+edif and edif2 work by storing an editable version of the specified
+function in:
 
 /var/run/user/<uid>/<pid>/<name>.apl  
 
