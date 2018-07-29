@@ -4,12 +4,39 @@ from within an APL session.
 Usage:
 
 	edif 'function_name'
+    or
+	edif2 'function_name'
 
-This will open an editor, typically vi or emacs, containing the present
-definition of the specified function, or, if the function doesn't exist,
-a boilerplate function header consisting of the function name.  After saving
-the edited definition and exiting the editor, the function will appear in
-the APL workspace.  While the editor is open, APL is suspended.
+Both of these will open an editor, typically vi or emacs, containing the
+present definition of the specified function, or, if the function doesn't
+exist, a boilerplate function header consisting of the function name.
+After saving the edited definition and exiting the editor, the function
+will appear in the APL workspace.
+
+The two versions of the function differ in that the first version, edif,
+suspends the current APL session until the editor is closed, while the
+second version, edif2, opens the editor in a separate process, in a
+separate window, while the APL session remains active.  This allows
+functions to be edited and tested concurrently without having to go
+into and out of the editor.  edif2 also allows multiple editor windows
+to be open simultaneously on different functions.
+
+Both versions have a dyadic form:
+
+	'editor' edif 'function_name'
+    or
+	'editor' edif2 'function_name'
+
+where 'editor' is the editor to be invoked.  For example:
+
+	'vi' edif 'fubar'
+
+would open function fubar using the vi editor.
+
+	'emacs' edif2 'fu'
+	'emacs' edif2 'bar'
+
+would open functions fu and bar in separate emacs windows.
 
 edif will look for the environment variable EDIF and will use the string
 specified by that variable as the command line to invoke the chosen editor.

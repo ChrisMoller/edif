@@ -70,8 +70,7 @@ Value_P Z(ucs, LOC);
 }
 #endif
 
-#define EDIF_DEFAULT \
-  "emacs --geometry=40x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
+#define EDIF_DEFAULT "vi"
 
 using namespace std;
 
@@ -110,9 +109,7 @@ get_signature()
   return SIG_Z_A_F2_B;
 }
 
-// export EDIF="emacs --geometry=80x60 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
-
-// apl --LX "'./.libs/libedif.so' ⎕fx 'edif'"
+// export EDIF="vi"
 
 static void
 get_fcn (const char *fn, const char *base, Value_P B)

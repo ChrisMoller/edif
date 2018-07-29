@@ -49,7 +49,7 @@
 #define MQ_NAME "/WHATS_IT_TO_YOU"
 #define MQ_SIGNAL (SIGRTMAX - 2)
 
-#define EDIF_DEFAULT \
+#define EDIF2_DEFAULT \
   "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
 
 using namespace std;
@@ -283,9 +283,7 @@ get_signature()
   return SIG_Z_A_F2_B;
 }
 
-// export EDIF="emacs --geometry=80x60 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
-
-// apl --LX "'./.libs/libedif.so' ⎕fx 'edif'"
+// export EDIF2="emacs --geometry=80x60 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
 
 static void
 get_fcn (const char *fn, const char *base, Value_P B)
@@ -458,8 +456,8 @@ static Token
 eval_B (Value_P B)
 {
   static char *edif;
-  if (!edif) edif = getenv ("EDIF");
-  if (!edif) edif = strdup (EDIF_DEFAULT);
+  if (!edif) edif = getenv ("EDIF2");
+  if (!edif) edif = strdup (EDIF2_DEFAULT);
   return eval_EB (edif, B);
 }
 
