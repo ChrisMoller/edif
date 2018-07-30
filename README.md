@@ -52,7 +52,7 @@ edif will look for the environment variable EDIF and will use the string
 specified by that variable as the command line to invoke the chosen editor.
 For example:
 
-   export EDIF2="nano"
+   export EDIF="nano"
 
 will cause edif to nefault to using the nano editor.  Similarly, the EDIF2
 variable affects the default edif2 editor.
