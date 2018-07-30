@@ -54,7 +54,7 @@ For example:
 
    export EDIF="nano"
 
-will cause edif to nefault to using the nano editor.  Similarly, the EDIF2
+will cause edif to default to using the nano editor.  Similarly, the EDIF2
 variable affects the default edif2 editor.
 
 edif has been tested with emacs, vi, and nano; edif2 with emacs and gvim.
