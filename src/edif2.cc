@@ -49,9 +49,6 @@
 #define MQ_NAME "/WHATS_IT_TO_YOU"
 #define MQ_SIGNAL (SIGRTMAX - 2)
 
-#define EDIF2_DEFAULT \
-  "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
-
 using namespace std;
 
 static pid_t watch_pid = -1;
@@ -65,6 +62,10 @@ static pid_t group_pid = 0;
 #endif
 static char *dir = NULL;
 static mqd_t mqd = -1;
+
+#define EDIF2_DEFAULT \
+  "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
+char *edif2_default = NULL;
 
 #ifdef USE_KIDS
 static void
@@ -120,6 +121,7 @@ close_fun (Cause cause, const NativeFunction * caller)
     watch_pid = 0;
   }
   
+  if (edif2_default) free (edif2_default);
   return false;
 }
 
@@ -226,6 +228,8 @@ get_signature()
   asprintf (&dir, "/var/run/user/%d/%d",
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
+  char *ed2 = getenv ("EDIF2");
+  edif2_default = strdup (ed2 ?: EDIF2_DEFAULT);
 
   struct sigaction msg_act;
   msg_act.sa_sigaction = msg_handler;
@@ -352,18 +356,6 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
   } 
   if (fn) free (fn);
 }
-    /***
-	from NamedObject.hh:
-
-NC_INVALID          = -1,   ///< invalid name class.
-NC_UNUSED_USER_NAME =  0,   ///< unused user name eg. pushed but not assigned
-NC_LABEL            =  1,   ///< Label.
-NC_VARIABLE         =  2,   ///< (assigned) variable.
-NC_FUNCTION         =  3,   ///< (user defined) function.
-NC_OPERATOR         =  4,   ///< (user defined) operator.
-NC_SHARED_VAR       =  5,   ///< shared variable.
-
-     ***/
 
 static Token
 eval_EB (const char *edif, Value_P B)
@@ -455,10 +447,7 @@ eval_EB (const char *edif, Value_P B)
 static Token
 eval_B (Value_P B)
 {
-  static char *edif;
-  if (!edif) edif = getenv ("EDIF2");
-  if (!edif) edif = strdup (EDIF2_DEFAULT);
-  return eval_EB (edif, B);
+  return eval_EB (edif2_default, B);
 }
 
 static Token
@@ -467,8 +456,11 @@ eval_AB (Value_P A, Value_P B)
   if (A->is_char_string ()) {
     const UCS_string  ustr = A->get_UCS_ravel();
     UTF8_string edif (ustr);
-    if (edif.c_str () && *(edif.c_str ()))
-      return eval_EB (edif.c_str (), B);
+    if (edif.c_str () && *(edif.c_str ())) {
+      if (edif2_default) free (edif2_default);
+      edif2_default = strdup (edif.c_str ());
+      return eval_EB (edif2_default, B);
+    }
     else {
       UCS_string ucs ("Invalid editor specification.");
       Value_P Z (ucs, LOC);

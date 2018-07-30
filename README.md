@@ -62,9 +62,8 @@ The default editor for edif is vi; the default for edif2 is
 
    "emacs --geometry=40x20  -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
 
-The dyadic form is a one-shot thing--edif doesn't remember editors
-specified this way and the monadic form will go back to using the
-default or environment-specified editor.
+The dyadic forms remember the chosen editors and sets them as replacement
+defaults for the duration of the session.
 
 edif may be included in the workspace with:
 

@@ -29,11 +29,15 @@
 #include<fstream>
 #include<string>
 
-#if 0
-#include "native/template.hh"
-#else
 #include "Value.icc"
 #include "Native_interface.hh"
+
+#define EDIF_DEFAULT "vi"
+char *edif_default = NULL;
+
+using namespace std;
+
+char *dir = NULL;
 
 class NativeFunction;
 
@@ -68,13 +72,6 @@ Value_P Z(ucs, LOC);
    Z->check_value(LOC);
    return Token(TOK_APL_VALUE1, Z);
 }
-#endif
-
-#define EDIF_DEFAULT "vi"
-
-using namespace std;
-
-char *dir = NULL;
 
 static bool
 close_fun (Cause cause, const NativeFunction * caller)
@@ -96,6 +93,7 @@ close_fun (Cause cause, const NativeFunction * caller)
     free (dir);
     dir = NULL;
   }
+  if (edif_default) free (edif_default);
   return true;
 }
 
@@ -105,6 +103,8 @@ get_signature()
   asprintf (&dir, "/var/run/user/%d/%d",
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
+  char *ed = getenv ("EDIF");
+  edif_default = strdup (ed ?: EDIF_DEFAULT);
 
   return SIG_Z_A_F2_B;
 }
@@ -177,19 +177,6 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
   if (fn) free (fn);
 }
 
-    /***
-	from NamedObject.hh:
-
-NC_INVALID          = -1,   ///< invalid name class.
-NC_UNUSED_USER_NAME =  0,   ///< unused user name eg. pushed but not assigned
-NC_LABEL            =  1,   ///< Label.
-NC_VARIABLE         =  2,   ///< (assigned) variable.
-NC_FUNCTION         =  3,   ///< (user defined) function.
-NC_OPERATOR         =  4,   ///< (user defined) operator.
-NC_SHARED_VAR       =  5,   ///< shared variable.
-
-     ***/
-
 static Token
 eval_EB (const char *edif, Value_P B)
 {
@@ -197,8 +184,6 @@ eval_EB (const char *edif, Value_P B)
     const UCS_string  ustr = B->get_UCS_ravel();
     UTF8_string base_name(ustr);
 
-#if 0
-#endif
     char *fn = NULL;
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
 
@@ -275,10 +260,7 @@ eval_EB (const char *edif, Value_P B)
 static Token
 eval_B (Value_P B)
 {
-  static char *edif;
-  if (!edif) edif = getenv ("EDIF");
-  if (!edif) edif = strdup (EDIF_DEFAULT);
-  return eval_EB (edif, B);
+  return eval_EB (edif_default, B);
 }
 
 static Token
@@ -287,8 +269,11 @@ eval_AB (Value_P A, Value_P B)
   if (A->is_char_string ()) {
     const UCS_string  ustr = A->get_UCS_ravel();
     UTF8_string edif (ustr);
-    if (edif.c_str () && *(edif.c_str ()))
-      return eval_EB (edif.c_str (), B);
+    if (edif.c_str () && *(edif.c_str ())) {
+      if (edif_default) free (edif_default);
+      edif_default = strdup (edif.c_str ());
+      return eval_EB (edif_default, B);
+    }
     else {
       UCS_string ucs ("Invalid editor specification.");
       Value_P Z (ucs, LOC);
