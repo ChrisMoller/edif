@@ -11,7 +11,17 @@ Both of these will open an editor, typically vi or emacs, containing the
 present definition of the specified function, or, if the function doesn't
 exist, a boilerplate function header consisting of the function name.
 After saving the edited definition and exiting the editor, the function
-will appear in the APL workspace.
+will appear in the APL workspace.  (In the case of a new function, the
+boilerplate name can be edited as necessary:
+
+    fubar
+
+can be edited to
+
+    z←x fubar y
+
+and the right thing will be fixed in APL.  (Even existing functions can be
+modified this way.))
 
 The two versions of the function differ in that the first version, edif,
 suspends the current APL session until the editor is closed, while the
