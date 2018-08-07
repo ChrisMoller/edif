@@ -168,16 +168,16 @@ enable_mq_notify ()
   sevp.sigev_value  = sv;
   sevp.sigev_signo  = MQ_SIGNAL;
   int rc = mq_notify (mqd, &sevp);
-  if (rc == -1) perror ("mq_notify");
+  //  if (rc == -1) perror ("mq_notify");  fixne
 }
 
 static void
 handle_msg ()
 {
   char bfr[NAME_MAX + 8];
-  struct timespec ts = {.tv_sec = 0, .tv_nsec = 100000000};
+  struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000};
   ssize_t sz;
-  while (0 < (sz = mq_timedreceive(mqd, bfr, NAME_MAX + 8, NULL, &ts))) {
+  while (0 <= (sz = mq_timedreceive(mqd, bfr, NAME_MAX + 8, NULL, &ts))) {
     char *cpy = strdup (bfr);
     if (cpy) {
       char *suffix = &cpy[strlen (bfr) - strlen (APL_SUFFIX)];
@@ -193,8 +193,10 @@ handle_msg ()
       free (cpy);
     }
   }
+  
   enable_mq_notify ();
 }
+
 
 static void
 watch_chld_handler(int sig, siginfo_t *si, void *data)
@@ -202,6 +204,7 @@ watch_chld_handler(int sig, siginfo_t *si, void *data)
   int wstatus;
   waitpid (si->si_pid, &wstatus, WNOHANG);
 }
+
 
 static void
 edit_chld_handler(int sig, siginfo_t *si, void *data)
@@ -219,6 +222,8 @@ edit_chld_handler(int sig, siginfo_t *si, void *data)
 static void
 msg_handler(int sig, siginfo_t *si, void *data)
 {
+  int wstatus;
+  waitpid (si->si_pid, &wstatus, WNOHANG);
   handle_msg ();
 }
 
@@ -234,21 +239,24 @@ get_signature()
   struct sigaction msg_act;
   msg_act.sa_sigaction = msg_handler;
   sigemptyset (&msg_act.sa_mask);
-  msg_act.sa_flags = SA_SIGINFO;
+  msg_act.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction (MQ_SIGNAL, &msg_act, NULL);
 
   struct sigaction chld_act;
   chld_act.sa_sigaction = watch_chld_handler;
   sigemptyset (&chld_act.sa_mask);
-  chld_act.sa_flags = SA_SIGINFO;
+  chld_act.sa_flags = SA_SIGINFO | SA_RESTART;
   sigaction (SIGCHLD, &chld_act, NULL);
 
   struct mq_attr attr;
   attr.mq_maxmsg  = 8;	// no good reason
   attr.mq_msgsize = NAME_MAX + 1;
-  mqd = mq_open (MQ_NAME, O_RDWR | O_CREAT /*| O_NONBLOCK*/,
+  mqd = mq_open (MQ_NAME, O_RDWR | O_CREAT | O_NONBLOCK,
 		 0600, &attr);
-  if (mqd == -1) perror ("mq_open");
+  if (mqd == -1) {
+    perror ("internal mq_open error in edif2");
+    return SIG_NONE;
+  }
 
   char bfr[NAME_MAX + 8];
   struct timespec ts = {.tv_sec = 0, .tv_nsec = 100000000};
@@ -267,7 +275,8 @@ get_signature()
     
     int inotify_fd = inotify_init ();
     FILE *inotify_fp = fdopen(inotify_fd, "r");
-    int inotify_rc = inotify_add_watch (inotify_fd, dir, IN_MODIFY);
+    int inotify_rc = inotify_add_watch (inotify_fd, dir,
+					IN_CREATE | IN_MODIFY);
     // int inotify_rc = inotify_add_watch (inotify_fd, dir, IN_ALL_EVENTS);
     while (1) {
 #define BUF_LEN (10 * (sizeof(struct inotify_event) + NAME_MAX + 1))
@@ -278,7 +287,10 @@ get_signature()
 	struct inotify_event *event = (struct inotify_event *)buf;
 	if (event->len > 0 && strlen (event->name) > 0) {
 	  int mrc = mq_send (mqd, event->name, event->len, 0);
-	  if (mrc == -1) perror ("mq_send");
+	  if (mrc == -1) {
+	    perror ("internal mq_send error in edif2");
+	    return SIG_NONE;
+	  }
 	}
       }
     }
@@ -385,21 +397,26 @@ eval_EB (const char *edif, Value_P B)
 	    Z->check_value (LOC);
 	    return Token (TOK_APL_VALUE1, Z);
 	  }
-	  else if (pid > 0) {
+	  else if (pid > 0) {		// parent
 #ifdef USE_KIDS
 	    add_a_kid (pid);
 #else
 	    int rc = setpgid (pid, group_pid);
-	    if (rc == -1) perror ("setpgid");
-	    if (group_pid == 0) group_pid = getpgid (pid);
+	    if (rc == -1) {
+	      UCS_string ucs ("Internal failure in edif2.");
+	      Value_P Z (ucs, LOC);
+	      Z->check_value (LOC);
+	      return Token (TOK_APL_VALUE1, Z);
+	    }
+	    else if (group_pid == 0) group_pid = getpgid (pid);
 #endif
 	    struct sigaction chld_act;
 	    chld_act.sa_sigaction = edit_chld_handler;
 	    sigemptyset (&chld_act.sa_mask);
-	    chld_act.sa_flags = SA_SIGINFO;
+	    chld_act.sa_flags = SA_SIGINFO | SA_RESTART;
 	    sigaction (SIGCHLD, &chld_act, NULL);
 	  }
-	  else if (pid == 0) {
+	  else if (pid == 0) {		// child
 	    get_fcn (fn, base_name.c_str (), B);
 	    char *buf;
 	    asprintf (&buf, "%s %s", edif, fn);
@@ -412,7 +429,7 @@ eval_EB (const char *edif, Value_P B)
 	      return Token (TOK_APL_VALUE1, Z);
 	    }
 	  }
-	  cleanup (dir, base_name, fn);  // fixme
+	  cleanup (dir, base_name, fn);
 	}
       }
       break;
