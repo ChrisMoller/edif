@@ -23,10 +23,10 @@ AC_SUBST(APL_SOURCES)
 #  echo ""; exit], AC_INCLUDES_DEFAULT)
 
 # should use AC_CHECK_HEADERS, but see above
-AC_CHECK_FILE([/usr/include/boost/spirit/include/qi.hpp], ,
-  [echo "";
-  echo ">>>> You need to install the boost packages. <<<<";
-  echo ""; exit])
+#AC_CHECK_FILE([/usr/include/boost/spirit/include/qi.hpp], ,
+#  [echo "";
+#  echo ">>>> You need to install the boost packages. <<<<";
+#  echo ""; exit])
 
 #PKG_CHECK_MODULES([PLPLOT], [plplotd >= 5.9.9], ,
 #  [echo "";
