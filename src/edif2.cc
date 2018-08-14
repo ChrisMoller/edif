@@ -46,8 +46,8 @@
 #include "edif2.hh"
 
 #define APL_SUFFIX ".apl"
-#define MQ_NAME "/WHATS_IT_TO_YOU"
 #define MQ_SIGNAL (SIGRTMAX - 2)
+static char *mq_name = NULL;
 
 using namespace std;
 
@@ -101,7 +101,7 @@ close_fun (Cause cause, const NativeFunction * caller)
   }
 
   if (mqd != -1) mq_close (mqd);
-  mq_unlink (MQ_NAME);
+  mq_unlink (mq_name);
 
 
 #ifdef USE_KIDS
@@ -251,7 +251,9 @@ get_signature()
   struct mq_attr attr;
   attr.mq_maxmsg  = 8;	// no good reason
   attr.mq_msgsize = NAME_MAX + 1;
-  mqd = mq_open (MQ_NAME, O_RDWR | O_CREAT | O_NONBLOCK,
+  asprintf (&mq_name, "/APLEDIF_%d", (int)getpid ());
+  mq_unlink (mq_name);
+  mqd = mq_open (mq_name, O_RDWR | O_CREAT | O_NONBLOCK,
 		 0600, &attr);
   if (mqd == -1) {
     perror ("internal mq_open error in edif2");
