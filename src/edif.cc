@@ -33,11 +33,11 @@
 #include "Native_interface.hh"
 
 #define EDIF_DEFAULT "vi"
-char *edif_default = NULL;
+static char *edif_default = NULL;
 
 using namespace std;
 
-char *dir = NULL;
+static char *dir = NULL;
 
 class NativeFunction;
 
@@ -93,7 +93,10 @@ close_fun (Cause cause, const NativeFunction * caller)
     free (dir);
     dir = NULL;
   }
-  if (edif_default) free (edif_default);
+  if (edif_default) {
+    free (edif_default);
+    edif_default = NULL;
+  }
   return true;
 }
 
@@ -104,6 +107,7 @@ get_signature()
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
   char *ed = getenv ("EDIF");
+  if (edif_default) free (edif_default);
   edif_default = strdup (ed ?: EDIF_DEFAULT);
 
   return SIG_Z_A_F2_B;

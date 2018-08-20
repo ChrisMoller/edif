@@ -71,7 +71,7 @@ static mqd_t mqd = -1;
 
 #define EDIF2_DEFAULT \
   "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
-char *edif2_default = NULL;
+static char *edif2_default = NULL;
 
 #ifdef USE_KIDS
 static void
@@ -141,7 +141,10 @@ close_fun (Cause cause, const NativeFunction * caller)
     watch_pid = 0;
   }
   
-  if (edif2_default) free (edif2_default);
+  if (edif2_default) {
+    free (edif2_default);
+    edif2_default = NULL;
+  }
   return false;
 }
 
@@ -274,6 +277,7 @@ get_signature()
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
   char *ed2 = getenv ("EDIF2");
+  
   edif2_default = strdup (ed2 ?: EDIF2_DEFAULT);
 
   struct sigaction msg_act;
