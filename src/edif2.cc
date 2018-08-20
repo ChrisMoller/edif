@@ -114,8 +114,8 @@ close_fun (Cause cause, const NativeFunction * caller)
   }
 
   if (mqd != -1) {
-    mqd = -1;
     mq_close (mqd);
+    mqd = -1;
   }
   if (mq_name) {
     mq_unlink (mq_name);
