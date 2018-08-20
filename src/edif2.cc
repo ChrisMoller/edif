@@ -45,6 +45,12 @@
 
 #include "edif2.hh"
 
+//#define DO_DEBUG
+#ifdef DO_DEBUG
+ofstream logfile ("/tmp/edif2.log");
+#endif
+
+
 #define APL_SUFFIX ".apl"
 #define MQ_SIGNAL (SIGRTMAX - 2)
 static char *mq_name = NULL;
@@ -82,6 +88,13 @@ add_a_kid (pid_t kid)
 static bool
 close_fun (Cause cause, const NativeFunction * caller)
 {
+#ifdef DO_DEBUG
+  logfile
+    << "close_fun dir: " << dir
+    << "mqd " << mqd
+    << "name " << mq_name
+    << endl;;
+#endif
   if (dir) {
     DIR *path;
     struct dirent *ent;
@@ -100,8 +113,15 @@ close_fun (Cause cause, const NativeFunction * caller)
     dir = NULL;
   }
 
-  if (mqd != -1) mq_close (mqd);
-  mq_unlink (mq_name);
+  if (mqd != -1) {
+    mqd = -1;
+    mq_close (mqd);
+  }
+  if (mq_name) {
+    mq_unlink (mq_name);
+    free (mq_name);
+    mq_name = NULL;
+  }
 
 
 #ifdef USE_KIDS
@@ -158,7 +178,7 @@ read_file (const char *base_name, const char *fn)
 }
 
 
-static void
+static bool
 enable_mq_notify ()
 {
   union sigval sv;
@@ -168,18 +188,27 @@ enable_mq_notify ()
   sevp.sigev_value  = sv;
   sevp.sigev_signo  = MQ_SIGNAL;
   int rc = mq_notify (mqd, &sevp);
-  //  if (rc == -1) perror ("mq_notify");  fixne
+#ifdef DO_DEBUG
+  logfile << "enabling " << mqd << endl;
+#endif
+  return (rc == -1) ? false : true;
 }
 
 static void
 handle_msg ()
 {
+#ifdef DO_DEBUG
+  logfile << "handle_msg\n";
+#endif
   char bfr[NAME_MAX + 8];
   struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000};
   ssize_t sz;
   while (0 <= (sz = mq_timedreceive(mqd, bfr, NAME_MAX + 8, NULL, &ts))) {
     char *cpy = strdup (bfr);
     if (cpy) {
+#ifdef DO_DEBUG
+      logfile << "\tcpy: " << cpy << endl;
+#endif
       char *suffix = &cpy[strlen (bfr) - strlen (APL_SUFFIX)];
       if (!strcmp (suffix, APL_SUFFIX)) {
 	*suffix = 0;
@@ -194,7 +223,8 @@ handle_msg ()
     }
   }
   
-  enable_mq_notify ();
+  if (!enable_mq_notify ())
+    fprintf (stderr, "internal mq_notify error in edif2");
 }
 
 
@@ -202,7 +232,7 @@ static void
 watch_chld_handler(int sig, siginfo_t *si, void *data)
 {
   int wstatus;
-  waitpid (si->si_pid, &wstatus, WNOHANG);
+  while (0 < waitpid (si->si_pid, &wstatus, WNOHANG));
 }
 
 
@@ -210,26 +240,36 @@ static void
 edit_chld_handler(int sig, siginfo_t *si, void *data)
 {
   int wstatus;
-  waitpid (si->si_pid, &wstatus, 0 /* WNOHANG */);
 #ifdef USE_KIDS
   int i;
-  for (i = 0; i < kids_nxt; i++) {
-    if (kids[i] == si->si_pid) kids[i] = -1;
-  }
 #endif
+  waitpid (si->si_pid, &wstatus, 0 /* WNOHANG */);
+#ifdef USE_KIDS
+  for (i = 0; i < kids_nxt; i++) {if (kids[i] == si->si_pid) kids[i] = -1;}
+#endif
+  while (0 < waitpid (si->si_pid, &wstatus, WNOHANG)) {
+#ifdef USE_KIDS
+    for (i = 0; i < kids_nxt; i++) {if (kids[i] == si->si_pid) kids[i] = -1;}
+#endif
+  }
 }
 
 static void
 msg_handler(int sig, siginfo_t *si, void *data)
 {
   int wstatus;
+#ifdef DO_DEBUG
+  logfile << "msg_handler\n";
+#endif
   waitpid (si->si_pid, &wstatus, WNOHANG);
-  handle_msg ();
+    //  while (0 < waitpid (si->si_pid, &wstatus, WNOHANG))
+    handle_msg ();
 }
 
 Fun_signature
 get_signature()
 {
+  if (mqd > 0) return SIG_Z_A_F2_B;	// already fixed
   asprintf (&dir, "/var/run/user/%d/%d",
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
@@ -253,7 +293,7 @@ get_signature()
   attr.mq_msgsize = NAME_MAX + 1;
   asprintf (&mq_name, "/APLEDIF_%d", (int)getpid ());
   mq_unlink (mq_name);
-  mqd = mq_open (mq_name, O_RDWR | O_CREAT | O_NONBLOCK,
+  mqd = mq_open (mq_name, O_RDWR | O_CREAT | O_NONBLOCK | O_EXCL,
 		 0600, &attr);
   if (mqd == -1) {
     perror ("internal mq_open error in edif2");
@@ -265,7 +305,10 @@ get_signature()
   ssize_t sz;
   // empty the queue, just in case
   while (0 < (sz = mq_timedreceive(mqd, bfr, NAME_MAX + 8, NULL, &ts))) {}
-  enable_mq_notify ();
+  if (!enable_mq_notify ()) {
+    fprintf (stderr, "internal mq_notify error in edif2");
+    return SIG_NONE;
+  }
 
 #ifndef USE_KIDS
   group_pid = getpid ();
@@ -288,10 +331,14 @@ get_signature()
       else {
 	struct inotify_event *event = (struct inotify_event *)buf;
 	if (event->len > 0 && strlen (event->name) > 0) {
+	resend:
 	  int mrc = mq_send (mqd, event->name, event->len, 0);
 	  if (mrc == -1) {
-	    perror ("internal mq_send error in edif2");
-	    return SIG_NONE;
+	    if (errno == EINTR || errno == EAGAIN) {
+	      fprintf (stderr, "again\n");
+	      goto resend;
+	    }
+	    else perror ("internal mq_send error in edif2");
 	  }
 	}
       }
