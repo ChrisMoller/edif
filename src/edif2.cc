@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <malloc.h>
 #include <mqueue.h>
+#include <pthread.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/inotify.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -50,6 +52,9 @@
 ofstream logfile ("/tmp/edif2.log");
 #endif
 
+static pthread_mutex_t *mutex;
+static pthread_mutexattr_t mutexattr;
+//static char *shared_block;
 
 #define APL_SUFFIX ".apl"
 #define MQ_SIGNAL (SIGRTMAX - 2)
@@ -95,6 +100,7 @@ close_fun (Cause cause, const NativeFunction * caller)
     << "name " << mq_name
     << endl;;
 #endif
+    
   if (dir) {
     DIR *path;
     struct dirent *ent;
@@ -109,8 +115,10 @@ close_fun (Cause cause, const NativeFunction * caller)
     } 
 
     rmdir (dir);
+    pthread_mutex_lock (mutex);
     free (dir);
     dir = NULL;
+    pthread_mutex_unlock (mutex);
   }
 
   if (mqd != -1) {
@@ -119,8 +127,10 @@ close_fun (Cause cause, const NativeFunction * caller)
   }
   if (mq_name) {
     mq_unlink (mq_name);
+    pthread_mutex_lock (mutex);
     free (mq_name);
     mq_name = NULL;
+    pthread_mutex_unlock (mutex);
   }
 
 
@@ -142,8 +152,10 @@ close_fun (Cause cause, const NativeFunction * caller)
   }
   
   if (edif2_default) {
+    pthread_mutex_lock (mutex);
     free (edif2_default);
     edif2_default = NULL;
+    pthread_mutex_unlock (mutex);
   }
   return false;
 }
@@ -269,10 +281,22 @@ msg_handler(int sig, siginfo_t *si, void *data)
     handle_msg ();
 }
 
+// http://www.andy-pearce.com/wiki/notes/sharing_pthreads_primitives_between_processes
+
 Fun_signature
 get_signature()
 {
   if (mqd > 0) return SIG_Z_A_F2_B;	// already fixed
+
+  mutex = (pthread_mutex_t *)mmap (NULL,
+				   sizeof(pthread_mutex_t),
+				   PROT_READ | PROT_WRITE,
+				   MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+  pthread_mutexattr_init (&mutexattr);
+  pthread_mutexattr_setpshared (&mutexattr, PTHREAD_PROCESS_SHARED);
+  pthread_mutex_init (mutex, &mutexattr);
+  pthread_mutexattr_destroy (&mutexattr);
+
   asprintf (&dir, "/var/run/user/%d/%d",
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
