@@ -101,6 +101,7 @@ close_fun (Cause cause, const NativeFunction * caller)
     << endl;;
 #endif
     
+  pthread_mutex_lock (mutex);
   if (dir) {
     DIR *path;
     struct dirent *ent;
@@ -115,23 +116,23 @@ close_fun (Cause cause, const NativeFunction * caller)
     } 
 
     rmdir (dir);
-    pthread_mutex_lock (mutex);
     free (dir);
     dir = NULL;
-    pthread_mutex_unlock (mutex);
   }
+  pthread_mutex_unlock (mutex);
 
   if (mqd != -1) {
     mq_close (mqd);
     mqd = -1;
   }
+
+  pthread_mutex_lock (mutex);
   if (mq_name) {
     mq_unlink (mq_name);
-    pthread_mutex_lock (mutex);
     free (mq_name);
     mq_name = NULL;
-    pthread_mutex_unlock (mutex);
   }
+  pthread_mutex_unlock (mutex);
 
 
 #ifdef USE_KIDS
@@ -151,12 +152,12 @@ close_fun (Cause cause, const NativeFunction * caller)
     watch_pid = 0;
   }
   
+  pthread_mutex_lock (mutex);
   if (edif2_default) {
-    pthread_mutex_lock (mutex);
     free (edif2_default);
     edif2_default = NULL;
-    pthread_mutex_unlock (mutex);
   }
+  pthread_mutex_unlock (mutex);
   return false;
 }
 
