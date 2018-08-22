@@ -121,10 +121,12 @@ close_fun (Cause cause, const NativeFunction * caller)
   }
   pthread_mutex_unlock (mutex);
 
+  pthread_mutex_lock (mutex);
   if (mqd != -1) {
     mq_close (mqd);
     mqd = -1;
   }
+  pthread_mutex_unlock (mutex);
 
   pthread_mutex_lock (mutex);
   if (mq_name) {
@@ -281,8 +283,6 @@ msg_handler(int sig, siginfo_t *si, void *data)
     //  while (0 < waitpid (si->si_pid, &wstatus, WNOHANG))
     handle_msg ();
 }
-
-// http://www.andy-pearce.com/wiki/notes/sharing_pthreads_primitives_between_processes
 
 Fun_signature
 get_signature()
