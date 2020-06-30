@@ -569,21 +569,6 @@ eval_AB (Value_P A, Value_P B)
   }
 }
 
-#if 0
-static Token
-eval_XB (Value_P A, Value_P B, const NativeFunction * caller)
-{
-  cerr << "in eval_XB()\n";
-  return Token (TOK_APL_VALUE1, Str0_0 (LOC));
-}
-
-static Token
-eval_AXB (Value_P A, Value_P X, Value_P B)
-{
-  cerr << "in eval_AXB()\n";
-  return Token (TOK_APL_VALUE1, Str0_0 (LOC));
-}
-#endif
   
 void *
 get_function_mux (const char * function_name)
@@ -591,10 +576,6 @@ get_function_mux (const char * function_name)
    if (!strcmp (function_name, "get_signature")) return (void *)&get_signature;
    if (!strcmp (function_name, "eval_B"))        return (void *)&eval_B;
    if (!strcmp (function_name, "eval_AB"))       return (void *)&eval_AB;
-#if 0
-   if (!strcmp (function_name, "eval_XB"))       return (void *)&eval_XB;
-   if (!strcmp (function_name, "eval_AXB"))      return (void *)&eval_AXB;
-#endif
    if (!strcmp (function_name, "eval_ident_Bx")) return (void *)&eval_ident_Bx;
    if (!strcmp (function_name, "eval_fill_B"))   return (void *)&eval_fill_B;
    if (!strcmp (function_name, "eval_fill_AB"))  return (void *)&eval_fill_AB;

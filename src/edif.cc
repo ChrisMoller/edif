@@ -30,7 +30,6 @@
 #include<fstream>
 #include<string>
 
-//#include "Value.icc"
 #include "Native_interface.hh"
 
 #define EDIF_DEFAULT "vi"
