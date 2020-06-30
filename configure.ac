@@ -1,4 +1,4 @@
-AC_INIT([APL editor native function], [2.1.1], [moller@mollerware.com],[edif])
+AC_INIT([APL editor native function], [2.2.0], [moller@mollerware.com],[edif])
 AC_PREFIX_DEFAULT( /usr/local )
 AC_USE_SYSTEM_EXTENSIONS
 AC_CONFIG_HEADERS([config.h])
@@ -13,6 +13,15 @@ AM_PROG_LIBTOOL
 libdir=$libdir/apl
 
 APL_SOURCES=`apl --show_src_dir`
+
+AC_CHECK_FILE($APL_SOURCES, [foundit=yes], [foundit=no])
+if test x$foundit = xno; then
+AC_ARG_WITH([apl-source-dir],
+  AS_HELP_STRING([--apl-source-dir=arg],
+  [Location of the GNU APL source code.]))
+  APL_SOURCES=$with_apl_source_dir
+fi
+
 AC_SUBST(APL_SOURCES)
 
 # AC_CHECK_HEADERS tries to compile the header but uses C instead of C++

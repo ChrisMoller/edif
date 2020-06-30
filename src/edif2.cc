@@ -177,14 +177,12 @@ read_file (const char *base_name, const char *fn)
   if (tfile.is_open ()) {
     string line;
     while (getline (tfile, line)) {
-      ucs.append_utf8 (line.c_str ());
+      ucs.append_UTF8 (line.c_str ());
       ucs.append(UNI_ASCII_LF);
     }
     tfile.close ();
     int error_line = 0;
     UCS_string creator (base_name);
-    creator.append (UNI_ASCII_COLON);
-    creator.append_number (NULL);
     UTF8_string creator_utf8(creator);
     UserFunction::fix (ucs,		// text
 		       error_line,	// err_line

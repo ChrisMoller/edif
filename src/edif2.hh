@@ -26,7 +26,7 @@
     a custom close_fun().
 ***/
 
-#include "Value.icc"
+//#include "Value.icc"
 #include "Native_interface.hh"
 
 class NativeFunction;
