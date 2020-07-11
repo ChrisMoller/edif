@@ -8,7 +8,8 @@ AM_MAINTAINER_MODE([enable])
 
 AC_PROG_CXX
 AM_PROG_AR
-AM_PROG_LIBTOOL
+#AM_PROG_LIBTOOL
+LT_INIT
 
 libdir=$libdir/apl
 
