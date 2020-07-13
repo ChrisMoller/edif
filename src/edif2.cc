@@ -44,11 +44,14 @@
 #include<string>
 
 #include "Macro.hh"
+#include "Command.hh"
 
 #include "edif2.hh"
 
 //#define DO_DEBUG
-#ifdef DO_DEBUG
+#define DO_DEBUG2
+
+#if defined (DO_DEBUG) || defined (DO_DEBUG2)
 ofstream logfile ("/tmp/edif2.log");
 #endif
 
@@ -57,6 +60,8 @@ static pthread_mutexattr_t mutexattr;
 //static char *shared_block;
 
 #define APL_SUFFIX ".apl"
+#define LAMBDA_PREFIX "_lambda_"
+static UCS_string  header_UCS (UTF8_string ("λ←"));
 #define MQ_SIGNAL (SIGRTMAX - 2)
 static char *mq_name = NULL;
 
@@ -71,11 +76,22 @@ static int kids_max = 0;
 #else
 static pid_t group_pid = 0;
 #endif
+
+/***
+    alloced in get_signature
+    freed in close_fun
+***/
 static char *dir = NULL;
+
 static mqd_t mqd = -1;
+static bool is_lambda;
 
 #define EDIF2_DEFAULT \
   "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
+/***
+    alloced in get_signature
+    freed in close_fun
+***/
 static char *edif2_default = NULL;
 
 #ifdef USE_KIDS
@@ -90,17 +106,36 @@ add_a_kid (pid_t kid)
 }
 #endif
 
+const Function *
+real_get_fcn (UCS_string symbol_name)
+{
+  const Function * function = 0;
+  while (symbol_name.back() <= ' ')   symbol_name.pop_back();
+  if (symbol_name.size() != 0) {
+    if (symbol_name[0] == UNI_MUE) {   // macro
+      loop (m, Macro::MAC_COUNT) {
+	const Macro * macro =
+	  Macro::get_macro(static_cast<Macro::Macro_num>(m));
+	if (symbol_name == macro->get_name()) {
+	  function = macro;
+	  break;
+	}
+      }
+    }
+    else {  // maybe user defined function
+      NamedObject *obj = Workspace::lookup_existing_name(symbol_name);
+      if (obj && obj->is_user_defined()) {
+	function = obj->get_function();
+	if (function && function->get_exec_properties()[0]) function = 0;
+      }
+    }
+  }
+  return function;
+}
+
 static bool
 close_fun (Cause cause, const NativeFunction * caller)
 {
-#ifdef DO_DEBUG
-  logfile
-    << "close_fun dir: " << dir
-    << "mqd " << mqd
-    << "name " << mq_name
-    << endl;;
-#endif
-    
   pthread_mutex_lock (mutex);
   if (dir) {
     DIR *path;
@@ -168,28 +203,67 @@ close_fun (Cause cause, const NativeFunction * caller)
     fn = fully qualified file name
 ***/
 
+
+#if 0
+static int64_t
+find_int_attr(const char * attrib, bool optional, int base)
+{
+const UTF8 * value = find_attr(attrib, optional);
+   if (value == 0)   return -1;   // not found
+
+const int64_t val = strtoll(charP(value), 0, base);
+   return val;
+}
+#endif
+
 static void
 read_file (const char *base_name, const char *fn)
 {
+  if (*base_name == '.') return;
   ifstream tfile;
   tfile.open (fn, ios::in);
   UCS_string ucs;
+  UCS_string lambda_ucs;
   if (tfile.is_open ()) {
     string line;
+    bool is_lambda_local =
+      (0 == strncmp (base_name, LAMBDA_PREFIX, strlen (LAMBDA_PREFIX)));
+    int cnt = 0;
     while (getline (tfile, line)) {
       ucs.append_UTF8 (line.c_str ());
       ucs.append(UNI_ASCII_LF);
+      if (cnt++ == 0) lambda_ucs.append_UTF8 (line.c_str ());
     }
     tfile.close ();
-    int error_line = 0;
-    UCS_string creator (base_name);
-    UTF8_string creator_utf8(creator);
-    UserFunction::fix (ucs,		// text
-		       error_line,	// err_line
-		       false,		// keep_existing
-		       LOC,		// loc
-		       creator_utf8,	// creator
-		       true);		// tolerant
+    if (is_lambda_local) {
+      const char *stripped_fn = base_name + strlen (LAMBDA_PREFIX);
+      UCS_string symbol_name(stripped_fn);
+      Function *function = (Function *)real_get_fcn (symbol_name);
+      if (function != NULL) {
+	UCS_string erase_cmd(")ERASE ");
+	erase_cmd.append (stripped_fn);
+	Bif_F1_EXECUTE::execute_command(erase_cmd);
+
+	UCS_string doit;
+	doit << stripped_fn
+	     << "←{"
+	     << lambda_ucs
+	     << "}";
+	Command::do_APL_expression (doit);
+
+      }
+    }
+    else {
+      int error_line = 0;
+      UCS_string creator (base_name);
+      UTF8_string creator_utf8(creator);
+      UserFunction::fix (ucs,		// text
+			 error_line,	// err_line
+			 false,		// keep_existing
+			 LOC,		// loc
+			 creator_utf8,	// creator
+			 true);		// tolerant
+    }
   }
 }
 
@@ -204,34 +278,45 @@ enable_mq_notify ()
   sevp.sigev_value  = sv;
   sevp.sigev_signo  = MQ_SIGNAL;
   int rc = mq_notify (mqd, &sevp);
-#ifdef DO_DEBUG
-  logfile << "enabling " << mqd << endl;
-#endif
   return (rc == -1) ? false : true;
 }
+
+typedef struct {
+  pid_t pid;
+  time_t tv_sec;
+  long   tv_nsec;
+} ts_s;
+
+ts_s last_time = {0, 0, 0};
 
 static void
 handle_msg ()
 {
-#ifdef DO_DEBUG
-  logfile << "handle_msg\n";
-#endif
   char bfr[NAME_MAX + 8];
   struct timespec ts = {.tv_sec = 0, .tv_nsec = 10000};
   ssize_t sz;
   while (0 <= (sz = mq_timedreceive(mqd, bfr, NAME_MAX + 8, NULL, &ts))) {
     char *cpy = strdup (bfr);
     if (cpy) {
-#ifdef DO_DEBUG
-      logfile << "\tcpy: " << cpy << endl;
-#endif
       char *suffix = &cpy[strlen (bfr) - strlen (APL_SUFFIX)];
       if (!strcmp (suffix, APL_SUFFIX)) {
-	*suffix = 0;
 	char *fn = NULL;
 	asprintf (&fn, "%s/%s", dir, bfr);
 	if (fn) {
-	  read_file (cpy, fn);
+	  struct stat result;
+	  bool do_read = true;
+	  if (0 == stat (fn, &result)) {
+	    if (last_time.pid == 0 || last_time.pid == getpid ()) {
+	      do_read =
+		(result.st_mtim.tv_sec > last_time.tv_sec) ||
+		(result.st_mtim.tv_nsec > last_time.tv_nsec);
+	      last_time.pid = getpid ();
+	      last_time.tv_sec  = result.st_mtim.tv_sec;
+	      last_time.tv_nsec = result.st_mtim.tv_nsec;
+	    }
+	  }
+	  *suffix = 0;
+	  if (do_read) read_file (cpy, fn);
 	  free (fn);
 	}
       }
@@ -274,9 +359,6 @@ static void
 msg_handler(int sig, siginfo_t *si, void *data)
 {
   int wstatus;
-#ifdef DO_DEBUG
-  logfile << "msg_handler\n";
-#endif
   waitpid (si->si_pid, &wstatus, WNOHANG);
     //  while (0 < waitpid (si->si_pid, &wstatus, WNOHANG))
     handle_msg ();
@@ -377,52 +459,56 @@ get_signature()
 
 // export EDIF2="emacs --geometry=80x60 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
 
-static void
+static char *
 get_fcn (const char *fn, const char *base, Value_P B)
 {
+  char *mfn = NULL;
   UCS_string symbol_name(*B.get());
-  while (symbol_name.back() <= ' ')   symbol_name.pop_back();
-  const Function * function = 0;
-  if (symbol_name.size() != 0) {
-    if (symbol_name[0] == UNI_MUE) {   // macro
-      loop (m, Macro::MAC_COUNT) {
-	const Macro * macro =
-	  Macro::get_macro(static_cast<Macro::Macro_num>(m));
-	if (symbol_name == macro->get_name()) {
-	  function = macro;
-	  break;
-	}
-      }
-    }
-    else {  // maybe user defined function
-      NamedObject * obj = Workspace::lookup_existing_name(symbol_name);
-      if (obj && obj->is_user_defined()) {
-	function = obj->get_function();
-	if (function && function->get_exec_properties()[0]) function = 0;
-      }
-    }
-  }
+  const Function * function = real_get_fcn (symbol_name);
   if (function != 0) {
-    const UCS_string ucs = function->canonical(false);
-    UCS_string_vector tlines;
-    ucs.to_vector(tlines);
-    ofstream tfile;
-    tfile.open (fn, ios::out);
-    loop(row, tlines.size()) {
-      const UCS_string & line = tlines[row];
-      UTF8_string utf (line);
-      tfile << utf << endl;
+    is_lambda = function->is_lambda();
+    if (is_lambda)
+      asprintf (&mfn, "%s/%s%s%s", dir, LAMBDA_PREFIX, base, APL_SUFFIX);
+    else
+      asprintf (&mfn, "%s/%s%s", dir, base, APL_SUFFIX);
+    if (mfn) {				// freed in eval_EB
+      const UCS_string ucs = function->canonical(false);
+      UCS_string_vector tlines;
+      ucs.to_vector(tlines);
+      ofstream tfile;
+      tfile.open (mfn, ios::out);
+      loop(row, tlines.size()) {
+	const UCS_string & line = tlines[row];
+	UTF8_string utf (line);
+#if 1
+	if (is_lambda) {
+	  // The 5 in the next line is purely empirical unless/until
+	  // I find a way to compute the length in bytes of a UTF8 string
+	  // It's alse probably appalling C++ code.  (I'm a C guy--I  ain't
+	  // bright enough for C++.
+	  if (row == 0) continue;		// skip header
+	  else utf = UTF8_string (5 + utf.c_str ()); // skip assignment
+	}
+#endif
+	tfile << utf << endl;
+      }
+      tfile.flush ();
+      tfile.close ();
     }
-    tfile.flush ();
-    tfile.close ();
+    // else cerr << "mfn alloc failed\n";  notify user
   }
-  else {
-    ofstream tfile;
-    tfile.open (fn, ios::out);
-    tfile << base << endl;
-    tfile.flush ();
-    tfile.close ();
+  else {			// new fcn
+    mfn = strdup (fn);		// freed in eval_EB
+    if (mfn) {
+      ofstream tfile;
+      tfile.open (mfn, ios::out);
+      tfile << base << endl;
+      tfile.flush ();
+      tfile.close ();
+    }
+    // else cerr << "mfn alloc failed\n";  notify user
   }
+  return mfn;
 }
 
 static void
@@ -437,12 +523,12 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
 	char *lfn;
 	asprintf (&lfn, "%s/%s", dir, ent->d_name);
 	unlink (lfn);
-	free (lfn);
+	//free (lfn);
       }
     }
     closedir (path);
   } 
-  if (fn) free (fn);
+  //  if (fn) free (fn);
 }
 
 static Token
@@ -453,80 +539,81 @@ eval_EB (const char *edif, Value_P B)
     UTF8_string base_name(ustr);
     char *fn = NULL;
     asprintf (&fn, "%s/%s%s", dir, base_name.c_str (), APL_SUFFIX);
-
-    APL_Integer nc = Quad_NC::get_NC(ustr);
-    switch (nc) {
-    case NC_FUNCTION:
-    case NC_UNUSED_USER_NAME:
-      {
-	if (watch_pid < 0) {
-	  UCS_string ucs ("Internal failure.");
-	  Value_P Z (ucs, LOC);
-	  Z->check_value (LOC);
-	  return Token (TOK_APL_VALUE1, Z);
-	}
-	else {
-	  pid_t pid = fork ();
-	  if (pid < 0) {
-	    UCS_string ucs ("Editor process failed to fork.");
+    char *mfn = get_fcn (fn, base_name.c_str (), B);
+    if (mfn) {
+      APL_Integer nc = Quad_NC::get_NC(ustr);
+      switch (nc) {
+      case NC_FUNCTION:
+      case NC_UNUSED_USER_NAME:
+	{
+	  if (watch_pid < 0) {
+	    UCS_string ucs ("Internal failure.");
 	    Value_P Z (ucs, LOC);
 	    Z->check_value (LOC);
 	    return Token (TOK_APL_VALUE1, Z);
 	  }
-	  else if (pid > 0) {		// parent
+	  else {
+	    pid_t pid = fork ();
+	    if (pid < 0) {
+	      UCS_string ucs ("Editor process failed to fork.");
+	      Value_P Z (ucs, LOC);
+	      Z->check_value (LOC);
+	      return Token (TOK_APL_VALUE1, Z);
+	    }
+	    else if (pid > 0) {		// parent
 #ifdef USE_KIDS
-	    add_a_kid (pid);
+	      add_a_kid (pid);
 #else
-	    int rc = setpgid (pid, group_pid);
-	    if (rc == -1) {
-	      UCS_string ucs ("Internal failure in edif2.");
-	      Value_P Z (ucs, LOC);
-	      Z->check_value (LOC);
-	      return Token (TOK_APL_VALUE1, Z);
-	    }
-	    else if (group_pid == 0) group_pid = getpgid (pid);
+	      int rc = setpgid (pid, group_pid);
+	      if (rc == -1) {
+		UCS_string ucs ("Internal failure in edif2.");
+		Value_P Z (ucs, LOC);
+		Z->check_value (LOC);
+		return Token (TOK_APL_VALUE1, Z);
+	      }
+	      else if (group_pid == 0) group_pid = getpgid (pid);
 #endif
-	    struct sigaction chld_act;
-	    chld_act.sa_sigaction = edit_chld_handler;
-	    sigemptyset (&chld_act.sa_mask);
-	    chld_act.sa_flags = SA_SIGINFO | SA_RESTART;
-	    sigaction (SIGCHLD, &chld_act, NULL);
-	  }
-	  else if (pid == 0) {		// child
-	    get_fcn (fn, base_name.c_str (), B);
-	    char *buf;
-	    asprintf (&buf, "%s %s", edif, fn);
-	    int erc = execl("/bin/sh", "sh", "-c", buf, (char *) 0);
-	    if (erc == -1) {
-	      if (buf) free (buf);
-	      UCS_string ucs ("Editor process failed to execute.");
-	      Value_P Z (ucs, LOC);
-	      Z->check_value (LOC);
-	      return Token (TOK_APL_VALUE1, Z);
+	      struct sigaction chld_act;
+	      chld_act.sa_sigaction = edit_chld_handler;
+	      sigemptyset (&chld_act.sa_mask);
+	      chld_act.sa_flags = SA_SIGINFO | SA_RESTART;
+	      sigaction (SIGCHLD, &chld_act, NULL);
 	    }
+	    else if (pid == 0) {		// child
+	      char *buf;
+	      asprintf (&buf, "%s %s", edif, mfn);
+	      int erc = execl("/bin/sh", "sh", "-c", buf, (char *) 0);
+	      if (erc == -1) {
+		if (buf) free (buf);
+		UCS_string ucs ("Editor process failed to execute.");
+		Value_P Z (ucs, LOC);
+		Z->check_value (LOC);
+		return Token (TOK_APL_VALUE1, Z);
+	      }
+	    }
+	    //	  cleanup (dir, base_name, mfn);
 	  }
-	  cleanup (dir, base_name, fn);
 	}
+	break;
+      case NC_VARIABLE:
+	{
+	  UCS_string ucs ("Variable editing not yet implemented.");
+	  Value_P Z (ucs, LOC);
+	  Z->check_value (LOC);
+	  return Token (TOK_APL_VALUE1, Z);
+	}
+	break;
+      default:
+	{
+	  UCS_string ucs ("Unknown editing type requested.");
+	  Value_P Z (ucs, LOC);
+	  Z->check_value (LOC);
+	  return Token (TOK_APL_VALUE1, Z);
+	}
+	break;
       }
-      break;
-    case NC_VARIABLE:
-      {
-	UCS_string ucs ("Variable editing not yet implemented.");
-	Value_P Z (ucs, LOC);
-	Z->check_value (LOC);
-	return Token (TOK_APL_VALUE1, Z);
-      }
-      break;
-    default:
-      {
-	UCS_string ucs ("Unknown editing type requested.");
-	Value_P Z (ucs, LOC);
-	Z->check_value (LOC);
-	return Token (TOK_APL_VALUE1, Z);
-      }
-      break;
+      free (mfn);
     }
-
     return Token(TOK_APL_VALUE1, Str0_0 (LOC));	// in case nothing works
   }
   else {
