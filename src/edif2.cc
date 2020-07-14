@@ -85,6 +85,7 @@ static char *dir = NULL;
 
 static mqd_t mqd = -1;
 static bool is_lambda;
+static bool force_lambda = false;
 
 #define EDIF2_DEFAULT \
   "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
@@ -202,19 +203,6 @@ close_fun (Cause cause, const NativeFunction * caller)
     base_name == apl function name
     fn = fully qualified file name
 ***/
-
-
-#if 0
-static int64_t
-find_int_attr(const char * attrib, bool optional, int base)
-{
-const UTF8 * value = find_attr(attrib, optional);
-   if (value == 0)   return -1;   // not found
-
-const int64_t val = strtoll(charP(value), 0, base);
-   return val;
-}
-#endif
 
 static void
 read_file (const char *base_name, const char *fn)
@@ -480,16 +468,10 @@ get_fcn (const char *fn, const char *base, Value_P B)
       loop(row, tlines.size()) {
 	const UCS_string & line = tlines[row];
 	UTF8_string utf (line);
-#if 1
 	if (is_lambda) {
-	  // The 5 in the next line is purely empirical unless/until
-	  // I find a way to compute the length in bytes of a UTF8 string
-	  // It's alse probably appalling C++ code.  (I'm a C guy--I  ain't
-	  // bright enough for C++.
 	  if (row == 0) continue;		// skip header
-	  else utf = UTF8_string (5 + utf.c_str ()); // skip assignment
+	  else utf = UCS_string (utf, 2, -1);	// skip assignment
 	}
-#endif
 	tfile << utf << endl;
       }
       tfile.flush ();
@@ -656,13 +638,36 @@ eval_AB (Value_P A, Value_P B)
   }
 }
 
+static Token
+eval_XB(Value_P X, Value_P B)
+{
+  if (X->is_numeric_scalar()) {
+    APL_Integer val = X->get_sole_integer();
+    if (val > 0) force_lambda = true;
+  }
+  return eval_EB (edif2_default, B);
+}
+
+static Token
+eval_AXB(Value_P A, Value_P X, Value_P B)
+{
+  if (X->is_numeric_scalar()) {
+    APL_Integer val = X->get_sole_integer();
+    if (val > 0) force_lambda = true;
+  }
+  return Token(TOK_APL_VALUE1, Str0_0 (LOC));
+  return eval_AB (A, B);
+}
+
   
 void *
 get_function_mux (const char * function_name)
 {
    if (!strcmp (function_name, "get_signature")) return (void *)&get_signature;
    if (!strcmp (function_name, "eval_B"))        return (void *)&eval_B;
+   if (!strcmp (function_name, "eval_XB"))       return (void *)&eval_XB;
    if (!strcmp (function_name, "eval_AB"))       return (void *)&eval_AB;
+   if (!strcmp (function_name, "eval_AXB"))      return (void *)&eval_AXB;
    if (!strcmp (function_name, "eval_ident_Bx")) return (void *)&eval_ident_Bx;
    if (!strcmp (function_name, "eval_fill_B"))   return (void *)&eval_fill_B;
    if (!strcmp (function_name, "eval_fill_AB"))  return (void *)&eval_fill_AB;
