@@ -10,4 +10,7 @@ libedif2_la_CPPFLAGS = -I$(APL_SOURCES) -pthread
 
 noinst_LTLIBRARIES =
 
+BUILT_SOURCES = gitversion.h
 
+gitversion.h :
+	git log  -1 --pretty='format:#define GIT_VERSION "%h %ci"' > $@

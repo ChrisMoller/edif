@@ -46,33 +46,6 @@ static Token eval_ident_Bx(Value_P B, Axis x, const NativeFunction * caller);
 static Token eval_fill_B(Value_P B, const NativeFunction * caller);
 static Token eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller);
 
-Token
-eval_fill_B(Value_P B, const NativeFunction * caller)
-{
-UCS_string ucs("eval_fill_B() called");
-Value_P Z(ucs, LOC);
-   Z->check_value(LOC);
-   return Token(TOK_APL_VALUE1, Z);
-}
-
-Token
-eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller)
-{
-UCS_string ucs("eval_fill_B() called");
-Value_P Z(ucs, LOC);
-   Z->check_value(LOC);
-   return Token(TOK_APL_VALUE1, Z);
-}
-
-Token
-eval_ident_Bx(Value_P B, Axis x, const NativeFunction * caller)
-{
-UCS_string ucs("eval_ident_Bx() called");
-Value_P Z(ucs, LOC);
-   Z->check_value(LOC);
-   return Token(TOK_APL_VALUE1, Z);
-}
-
 static bool
 close_fun (Cause cause, const NativeFunction * caller)
 {
@@ -291,15 +264,46 @@ eval_AB (Value_P A, Value_P B)
   }
 }
 
+#if 0
+Token
+eval_fill_B(Value_P B, const NativeFunction * caller)
+{
+UCS_string ucs("eval_fill_B() called");
+Value_P Z(ucs, LOC);
+   Z->check_value(LOC);
+   return Token(TOK_APL_VALUE1, Z);
+}
+
+Token
+eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller)
+{
+UCS_string ucs("eval_fill_B() called");
+Value_P Z(ucs, LOC);
+   Z->check_value(LOC);
+   return Token(TOK_APL_VALUE1, Z);
+}
+
+Token
+eval_ident_Bx(Value_P B, Axis x, const NativeFunction * caller)
+{
+UCS_string ucs("eval_ident_Bx() called");
+Value_P Z(ucs, LOC);
+   Z->check_value(LOC);
+   return Token(TOK_APL_VALUE1, Z);
+}
+#endif
+
 void *
 get_function_mux (const char * function_name)
 {
    if (!strcmp (function_name, "get_signature")) return (void *)&get_signature;
    if (!strcmp (function_name, "eval_B"))        return (void *)&eval_B;
    if (!strcmp (function_name, "eval_AB"))       return (void *)&eval_AB;
-   if (!strcmp (function_name, "eval_ident_Bx")) return (void *)&eval_ident_Bx;
+#if 0
    if (!strcmp (function_name, "eval_fill_B"))   return (void *)&eval_fill_B;
    if (!strcmp (function_name, "eval_fill_AB"))  return (void *)&eval_fill_AB;
+   if (!strcmp (function_name, "eval_ident_Bx")) return (void *)&eval_ident_Bx;
+#endif
    if (!strcmp (function_name, "close_fun"))
      return reinterpret_cast<void *>(&close_fun);
    return 0;

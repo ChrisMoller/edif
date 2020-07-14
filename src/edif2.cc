@@ -47,6 +47,22 @@
 #include "Command.hh"
 
 #include "edif2.hh"
+#include "gitversion.h"
+
+#if 1
+#ifdef HAVE_CONFIG_H
+#undef PACKAGE
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_URL
+#undef PACKAGE_VERSION
+#undef VERSION
+#include "../config.h"
+#endif
+#endif
+
 
 //#define DO_DEBUG
 #define DO_DEBUG2
@@ -61,7 +77,6 @@ static pthread_mutexattr_t mutexattr;
 
 #define APL_SUFFIX ".apl"
 #define LAMBDA_PREFIX "_lambda_"
-static UCS_string  header_UCS (UTF8_string ("λ←"));
 #define MQ_SIGNAL (SIGRTMAX - 2)
 static char *mq_name = NULL;
 
@@ -224,33 +239,33 @@ read_file (const char *base_name, const char *fn)
     }
     tfile.close ();
     if (is_lambda_local) {
-      const char *stripped_fn = base_name + strlen (LAMBDA_PREFIX);
-      UCS_string symbol_name(stripped_fn);
-      Function *function = (Function *)real_get_fcn (symbol_name);
-      if (function != NULL) {
-	UCS_string erase_cmd(")ERASE ");
-	erase_cmd.append (stripped_fn);
-	Bif_F1_EXECUTE::execute_command(erase_cmd);
+      if (!lambda_ucs.empty ()) {
+	const char *stripped_fn = base_name + strlen (LAMBDA_PREFIX);
+	UCS_string symbol_name(stripped_fn);
+	Function *function = (Function *)real_get_fcn (symbol_name);
+	if (function != NULL) {
+	  UCS_string erase_cmd(")ERASE ");
+	  erase_cmd.append (stripped_fn);
+	  Bif_F1_EXECUTE::execute_command(erase_cmd);
+	}
 
 	UCS_string doit;
-	doit << stripped_fn
-	     << "←{"
-	     << lambda_ucs
-	     << "}";
+	doit << stripped_fn << "←{" << lambda_ucs << "}";
 	Command::do_APL_expression (doit);
-
       }
     }
     else {
-      int error_line = 0;
-      UCS_string creator (base_name);
-      UTF8_string creator_utf8(creator);
-      UserFunction::fix (ucs,		// text
-			 error_line,	// err_line
-			 false,		// keep_existing
-			 LOC,		// loc
-			 creator_utf8,	// creator
-			 true);		// tolerant
+      if (!ucs.empty ()) {
+	int error_line = 0;
+	UCS_string creator (base_name);
+	UTF8_string creator_utf8(creator);
+	UserFunction::fix (ucs,			// text
+			   error_line,		// err_line
+			   false,		// keep_existing
+			   LOC,			// loc
+			   creator_utf8,	// creator
+			   true);		// tolerant
+      }
     }
   }
 }
@@ -454,7 +469,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
   UCS_string symbol_name(*B.get());
   const Function * function = real_get_fcn (symbol_name);
   if (function != 0) {
-    is_lambda = function->is_lambda();
+    is_lambda = force_lambda || function->is_lambda();
     if (is_lambda)
       asprintf (&mfn, "%s/%s%s%s", dir, LAMBDA_PREFIX, base, APL_SUFFIX);
     else
@@ -480,11 +495,14 @@ get_fcn (const char *fn, const char *base, Value_P B)
     // else cerr << "mfn alloc failed\n";  notify user
   }
   else {			// new fcn
-    mfn = strdup (fn);		// freed in eval_EB
+    if (force_lambda)
+      asprintf (&mfn, "%s/%s%s%s", dir, LAMBDA_PREFIX, base, APL_SUFFIX);
+    else
+      mfn = strdup (fn);		// freed in eval_EB
     if (mfn) {
       ofstream tfile;
       tfile.open (mfn, ios::out);
-      tfile << base << endl;
+      if (!force_lambda) tfile << base << endl;
       tfile.flush ();
       tfile.close ();
     }
@@ -638,12 +656,28 @@ eval_AB (Value_P A, Value_P B)
   }
 }
 
+
 static Token
 eval_XB(Value_P X, Value_P B)
 {
+  force_lambda = false;
   if (X->is_numeric_scalar()) {
     APL_Integer val = X->get_sole_integer();
-    if (val > 0) force_lambda = true;
+    switch(val) {
+    case 1: force_lambda = true; break;
+    case 2:
+      {
+	Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    case 3: 
+      {
+	Value_P vers (UCS_string(GIT_VERSION), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    }
   }
   return eval_EB (edif2_default, B);
 }
@@ -651,11 +685,25 @@ eval_XB(Value_P X, Value_P B)
 static Token
 eval_AXB(Value_P A, Value_P X, Value_P B)
 {
+  force_lambda = false;
   if (X->is_numeric_scalar()) {
     APL_Integer val = X->get_sole_integer();
-    if (val > 0) force_lambda = true;
+    switch(val) {
+    case 1: force_lambda = true; break;
+    case 2: 
+      {
+	Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    case 3: 
+      {
+	Value_P vers (UCS_string(GIT_VERSION), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    }
   }
-  return Token(TOK_APL_VALUE1, Str0_0 (LOC));
   return eval_AB (A, B);
 }
 
