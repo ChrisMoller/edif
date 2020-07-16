@@ -12,5 +12,7 @@ noinst_LTLIBRARIES =
 
 BUILT_SOURCES = gitversion.h
 
-gitversion.h :
+.FORCE:
+
+gitversion.h : .FORCE
 	git log  -1 --pretty='format:#define GIT_VERSION "%h %ci"' > $@
