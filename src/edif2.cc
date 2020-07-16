@@ -49,7 +49,6 @@
 #include "edif2.hh"
 #include "gitversion.h"
 
-#if 1
 #ifdef HAVE_CONFIG_H
 #undef PACKAGE
 #undef PACKAGE_BUGREPORT
@@ -61,11 +60,10 @@
 #undef VERSION
 #include "../config.h"
 #endif
-#endif
 
 
 //#define DO_DEBUG
-#define DO_DEBUG2
+//#define DO_DEBUG2
 
 #if defined (DO_DEBUG) || defined (DO_DEBUG2)
 ofstream logfile ("/tmp/edif2.log");
@@ -474,6 +472,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
       asprintf (&mfn, "%s/%s%s%s", dir, LAMBDA_PREFIX, base, APL_SUFFIX);
     else
       asprintf (&mfn, "%s/%s%s", dir, base, APL_SUFFIX);
+    
     if (mfn) {				// freed in eval_EB
       const UCS_string ucs = function->canonical(false);
       UCS_string_vector tlines;

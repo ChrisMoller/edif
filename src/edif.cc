@@ -32,19 +32,42 @@
 
 #include "Native_interface.hh"
 
+
+#include "edif2.hh"
+#include "gitversion.h"
+
+#ifdef HAVE_CONFIG_H
+#undef PACKAGE
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_NAME
+#undef PACKAGE_STRING
+#undef PACKAGE_TARNAME
+#undef PACKAGE_URL
+#undef PACKAGE_VERSION
+#undef VERSION
+#include "../config.h"
+#endif
+
+#define APL_SUFFIX ".apl"
+#define LAMBDA_PREFIX "_lambda_"
+
 #define EDIF_DEFAULT "vi"
 static char *edif_default = NULL;
 
 using namespace std;
+static bool is_lambda = false;
 
 static char *dir = NULL;
+static const Function *function = NULL;
 
 class NativeFunction;
 
 extern "C" void * get_function_mux(const char * function_name);
+#if 0
 static Token eval_ident_Bx(Value_P B, Axis x, const NativeFunction * caller);
 static Token eval_fill_B(Value_P B, const NativeFunction * caller);
 static Token eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller);
+#endif
 
 static bool
 close_fun (Cause cause, const NativeFunction * caller)
@@ -93,7 +116,6 @@ get_fcn (const char *fn, const char *base, Value_P B)
 {
   UCS_string symbol_name(*B.get());
   while (symbol_name.back() <= ' ')   symbol_name.pop_back();
-  const Function * function = 0;
   if (symbol_name.size() != 0) {
     if (symbol_name[0] == UNI_MUE) {   // macro
       loop (m, Macro::MAC_COUNT) {
@@ -114,6 +136,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
     }
   }
   if (function != 0) {
+    is_lambda |= function->is_lambda();
     const UCS_string ucs = function->canonical(false);
     UCS_string_vector tlines;
     ucs.to_vector(tlines);
@@ -122,6 +145,10 @@ get_fcn (const char *fn, const char *base, Value_P B)
     loop(row, tlines.size()) {
       const UCS_string & line = tlines[row];
       UTF8_string utf (line);
+      if (is_lambda) {
+	if (row == 0) continue;			// skip header
+	else utf = UCS_string (utf, 2, -1);	// skip assignment
+      }
       tfile << utf << endl;
     }
     tfile.close ();
@@ -129,7 +156,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
   else {
     ofstream tfile;
     tfile.open (fn, ios::out);
-    tfile << base << endl;
+    if (!is_lambda) tfile << base << endl;
     tfile.close ();
   }
 }
@@ -157,6 +184,7 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
 static Token
 eval_EB (const char *edif, Value_P B)
 {
+  function = NULL;
   if (B->is_char_string ()) {
     const UCS_string  ustr = B->get_UCS_ravel();
     UTF8_string base_name(ustr);
@@ -178,30 +206,53 @@ eval_EB (const char *edif, Value_P B)
 	ifstream tfile;
 	tfile.open (fn, ios::in);
 	UCS_string ucs;
+	UCS_string lambda_ucs;
 	if (tfile.is_open ()) {
 	  string line;
+	  int cnt = 0;
 	  while (getline (tfile, line)) {
 	    ucs.append_UTF8 (line.c_str ());
 	    ucs.append(UNI_ASCII_LF);
+	    if (cnt++ == 0) lambda_ucs.append_UTF8 (line.c_str ());
 	  }
 	  tfile.close ();
-	  int error_line = 0;
-	  UCS_string creator (base_name);
-	  UTF8_string creator_utf8(creator);
-	  UserFunction::fix (ucs,		// text
-			     error_line,	// err_line
-			     false,		// keep_existing
-			     LOC,		// loc
-			     creator_utf8,	// creator
-			     true);		// tolerant
-	  cleanup (dir, base_name, fn);
+	  if (is_lambda) {
+	    if (!lambda_ucs.empty ()) {
+	      NamedObject * obj =
+		Workspace::lookup_existing_name (UCS_string (base_name));
+	      if (obj) {
+		UCS_string erase_cmd(")ERASE ");
+		erase_cmd.append (base_name);
+		Bif_F1_EXECUTE::execute_command(erase_cmd);
+	      }
+
+	      UCS_string doit;
+	      doit << base_name << "←{" << lambda_ucs << "}";
+	      Command::do_APL_expression (doit);
+	    }
+	  }
+	  else {
+	    if (!ucs.empty ()) {
+	      int error_line = 0;
+	      UCS_string creator (base_name);
+	      UTF8_string creator_utf8(creator);
+	      UserFunction::fix (ucs,		// text
+				 error_line,	// err_line
+				 false,		// keep_existing
+				 LOC,		// loc
+				 creator_utf8,	// creator
+				 true);		// tolerant
+	    }
+	  }
 	}
 	else {
 	  UCS_string ucs ("Error opening working file.");
 	  Value_P Z (ucs, LOC);
 	  Z->check_value (LOC);
+	  is_lambda = false;
 	  return Token (TOK_APL_VALUE1, Z);
 	}
+	cleanup (dir, base_name, fn);
       }
       break;
     case NC_VARIABLE:
@@ -209,6 +260,7 @@ eval_EB (const char *edif, Value_P B)
 	UCS_string ucs ("Variable editing not yet implemented.");
 	Value_P Z (ucs, LOC);
 	Z->check_value (LOC);
+	is_lambda = false;
 	return Token (TOK_APL_VALUE1, Z);
       }
       break;
@@ -217,11 +269,13 @@ eval_EB (const char *edif, Value_P B)
 	UCS_string ucs ("Unknown editing type requested.");
 	Value_P Z (ucs, LOC);
 	Z->check_value (LOC);
+	is_lambda = false;
 	return Token (TOK_APL_VALUE1, Z);
       }
       break;
     }
 
+    is_lambda = false;
     return Token(TOK_APL_VALUE1, Str0_0 (LOC));	// in case nothing works
   }
   else {
@@ -231,6 +285,7 @@ eval_EB (const char *edif, Value_P B)
     return Token (TOK_APL_VALUE1, Z);
   }
 }
+
 
 static Token
 eval_B (Value_P B)
@@ -293,12 +348,65 @@ Value_P Z(ucs, LOC);
 }
 #endif
 
+static Token
+eval_XB(Value_P X, Value_P B)
+{
+  is_lambda = false;
+  if (X->is_numeric_scalar()) {
+    APL_Integer val = X->get_sole_integer();
+    switch(val) {
+    case 1: is_lambda = true; break;
+    case 2:
+      {
+	Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    case 3: 
+      {
+	Value_P vers (UCS_string(GIT_VERSION), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    }
+  }
+  return eval_EB (edif_default, B);
+}
+
+
+static Token
+eval_AXB(Value_P A, Value_P X, Value_P B)
+{
+  is_lambda = false;
+  if (X->is_numeric_scalar()) {
+    APL_Integer val = X->get_sole_integer();
+    switch(val) {
+    case 1: is_lambda = true; break;
+    case 2: 
+      {
+	Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    case 3: 
+      {
+	Value_P vers (UCS_string(GIT_VERSION), LOC);
+	return Token(TOK_APL_VALUE1, vers);
+      }
+      break;
+    }
+  }
+  return eval_AB (A, B);
+}
+
 void *
 get_function_mux (const char * function_name)
 {
    if (!strcmp (function_name, "get_signature")) return (void *)&get_signature;
    if (!strcmp (function_name, "eval_B"))        return (void *)&eval_B;
+   if (!strcmp (function_name, "eval_XB"))       return (void *)&eval_XB;
    if (!strcmp (function_name, "eval_AB"))       return (void *)&eval_AB;
+   if (!strcmp (function_name, "eval_AXB"))      return (void *)&eval_AXB;
 #if 0
    if (!strcmp (function_name, "eval_fill_B"))   return (void *)&eval_fill_B;
    if (!strcmp (function_name, "eval_fill_AB"))  return (void *)&eval_fill_AB;

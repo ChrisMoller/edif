@@ -1,0 +1,26 @@
+Installation of the edif functions should be a matter of
+
+	cd edif 
+	./configure
+	make
+	sudo make install
+
+Building the edif native functions requires that the source code for GNU APL 
+be available.  The build process will try to find the source (using 
+apl --show_src_dir) but if it fails, the location can be set manually
+during configure
+
+	./configure --apl-source-dir=<source dir>
+
+If the configure step fails, it may be necessary to rebuild the configuration
+script, which may be done with:
+
+	cd edif
+	./autoconf.sh
+
+(Doing this requires that the autotools (autoconf, automake, and libtools) 
+be installed.)
+
+Of course, the edif functions are pointless without external editors. For 
+edif, only vim and nano have been tested; for edif2, only emacs and gvim
+(from the vim-X11 package) have been tested.
