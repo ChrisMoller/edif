@@ -12,7 +12,6 @@ config.log
 config.status
 config.sub
 depcomp
-install-sh
 libtool
 ltmain.sh
 m4/
