@@ -7,7 +7,6 @@ src/.apl.history
 src/.deps/
 src/.libs/
 src/Makefile
-src/Makefile.in
 
 # Prerequisites
 *.d
