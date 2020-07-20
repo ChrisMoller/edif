@@ -237,23 +237,41 @@ read_file (const char *base_name, const char *fn)
     }
     tfile.close ();
     if (is_lambda_local) {
-      if (!lambda_ucs.empty ()) {
-	const char *stripped_fn = base_name + strlen (LAMBDA_PREFIX);
-	UCS_string symbol_name(stripped_fn);
-	Function *function = (Function *)real_get_fcn (symbol_name);
-	if (function != NULL) {
-	  UCS_string erase_cmd(")ERASE ");
-	  erase_cmd.append (stripped_fn);
-	  Bif_F1_EXECUTE::execute_command(erase_cmd);
-	}
+      if (lambda_ucs.has_black ()) {
+	if (lambda_ucs.back () != L'←') {
+	  int len = 0;
+	  UCS_string cpy;
+	  lambda_ucs.copy_black (cpy, len);
+	  lambda_ucs = cpy;
 
-	UCS_string doit;
-	doit << stripped_fn << "←{" << lambda_ucs << "}";
-	Command::do_APL_expression (doit);
+	  UTF8_string lambda_utf (lambda_ucs);
+	  UTF8_string base_utf (base_name + strlen (LAMBDA_PREFIX));
+	  size_t base_len = base_utf.size ();
+	  int cmp = lambda_utf.compare (0, base_len, base_utf);
+
+	  UCS_string target_name;
+	  if (cmp != 0) {
+	    UCS_string larrow (UTF8_string ("←"));
+	    size_t arrow_offset = lambda_ucs.find_first_of (larrow);
+	    target_name =
+	      (arrow_offset == string::npos) ?
+	      lambda_ucs : UCS_string (lambda_ucs, arrow_offset, -1);
+	  }
+	  else target_name = base_name + strlen (LAMBDA_PREFIX);
+	  
+	  Function *function = (Function *)real_get_fcn (target_name);
+	  if (function != NULL) {
+	    UCS_string erase_cmd(")ERASE ");
+	    erase_cmd.append (target_name);
+	    Bif_F1_EXECUTE::execute_command(erase_cmd);
+	  }
+
+	  Command::do_APL_expression (lambda_ucs);
+	}
       }
     }
     else {
-      if (!ucs.empty ()) {
+      if (ucs.has_black ()) {
 	int error_line = 0;
 	UCS_string creator (base_name);
 	UTF8_string creator_utf8(creator);
@@ -484,14 +502,17 @@ get_fcn (const char *fn, const char *base, Value_P B)
 	UTF8_string utf (line);
 	if (is_lambda) {
 	  if (row == 0) continue;		// skip header
-	  else utf = UCS_string (utf, 2, -1);	// skip assignment
+	  else {
+	    utf = UCS_string (utf, 2, -1);	// skip assignment
+	     tfile << base << "←{" << utf << "}";
+	     break;
+	  }
 	}
-	tfile << utf << endl;
+	else tfile << utf << endl;
       }
       tfile.flush ();
       tfile.close ();
     }
-    // else cerr << "mfn alloc failed\n";  notify user
   }
   else {			// new fcn
     if (force_lambda)
@@ -501,11 +522,13 @@ get_fcn (const char *fn, const char *base, Value_P B)
     if (mfn) {
       ofstream tfile;
       tfile.open (mfn, ios::out);
-      if (!force_lambda) tfile << base << endl;
+      if (force_lambda)
+	tfile << base << "←";
+      else
+	tfile << base << endl;
       tfile.flush ();
       tfile.close ();
     }
-    // else cerr << "mfn alloc failed\n";  notify user
   }
   return mfn;
 }
@@ -531,8 +554,24 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
 }
 
 static Token
-eval_EB (const char *edif, Value_P B)
+eval_EB (const char *edif, Value_P B, APL_Integer idx)
 {
+  force_lambda = false;
+  switch(idx) {
+  case 1: force_lambda = true; break;
+  case 2: 
+    {
+      Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+      return Token(TOK_APL_VALUE1, vers);
+    }
+    break;
+  case 3: 
+    {
+      Value_P vers (UCS_string(GIT_VERSION), LOC);
+      return Token(TOK_APL_VALUE1, vers);
+    }
+    break;
+  }
   if (B->is_char_string ()) {
     const UCS_string  ustr = B->get_UCS_ravel();
     UTF8_string base_name(ustr);
@@ -623,22 +662,35 @@ eval_EB (const char *edif, Value_P B)
   }
 }
 
+
 static Token
-eval_B (Value_P B)
+eval_XB(Value_P X, Value_P B)
 {
-  return eval_EB (edif2_default, B);
+  APL_Integer val =
+    (X->is_numeric_scalar()) ? X->get_sole_integer() : 0;
+  return eval_EB (edif2_default, B, val);
 }
 
 static Token
-eval_AB (Value_P A, Value_P B)
+eval_B (Value_P B)
+{
+  Value_P X = IntScalar (0, LOC);
+  return eval_XB (X, B);
+}
+
+static Token
+eval_AXB(Value_P A, Value_P X, Value_P B)
 {
   if (A->is_char_string ()) {
+    APL_Integer val =
+      (X->is_numeric_scalar())  ? X->get_sole_integer()  : 0;
+
     const UCS_string  ustr = A->get_UCS_ravel();
     UTF8_string edif (ustr);
     if (edif.c_str () && *(edif.c_str ())) {
       if (edif2_default) free (edif2_default);
       edif2_default = strdup (edif.c_str ());
-      return eval_EB (edif2_default, B);
+      return eval_EB (edif2_default, B, val);
     }
     else {
       UCS_string ucs ("Invalid editor specification.");
@@ -655,55 +707,11 @@ eval_AB (Value_P A, Value_P B)
   }
 }
 
-
 static Token
-eval_XB(Value_P X, Value_P B)
+eval_AB (Value_P A, Value_P B)
 {
-  force_lambda = false;
-  if (X->is_numeric_scalar()) {
-    APL_Integer val = X->get_sole_integer();
-    switch(val) {
-    case 1: force_lambda = true; break;
-    case 2:
-      {
-	Value_P vers (UCS_string(PACKAGE_STRING), LOC);
-	return Token(TOK_APL_VALUE1, vers);
-      }
-      break;
-    case 3: 
-      {
-	Value_P vers (UCS_string(GIT_VERSION), LOC);
-	return Token(TOK_APL_VALUE1, vers);
-      }
-      break;
-    }
-  }
-  return eval_EB (edif2_default, B);
-}
-
-static Token
-eval_AXB(Value_P A, Value_P X, Value_P B)
-{
-  force_lambda = false;
-  if (X->is_numeric_scalar()) {
-    APL_Integer val = X->get_sole_integer();
-    switch(val) {
-    case 1: force_lambda = true; break;
-    case 2: 
-      {
-	Value_P vers (UCS_string(PACKAGE_STRING), LOC);
-	return Token(TOK_APL_VALUE1, vers);
-      }
-      break;
-    case 3: 
-      {
-	Value_P vers (UCS_string(GIT_VERSION), LOC);
-	return Token(TOK_APL_VALUE1, vers);
-      }
-      break;
-    }
-  }
-  return eval_AB (A, B);
+  Value_P X = IntScalar (0, LOC);
+  return eval_AXB (A, X, B);
 }
 
   
