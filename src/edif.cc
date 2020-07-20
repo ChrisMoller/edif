@@ -59,6 +59,7 @@ static bool is_lambda = false;
 
 static char *dir = NULL;
 static const Function *function = NULL;
+static const UCS_string WHITESPACE = " \n\t\r\f\v";
 
 class NativeFunction;
 
@@ -145,7 +146,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
       if (is_lambda) {
 	if (row == 0) continue;			// skip header
 	else {
-	  utf = UCS_string (utf, 2, -1);	// skip assignment
+	  utf = UCS_string (utf, 2, string::npos);	// skip assignment
 	  tfile << base << "←{" << utf << "}";
 	  break;
 	}
@@ -240,9 +241,8 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  if (is_lambda) {
 	    if (lambda_ucs.has_black ()) {
 	      int len = 0;
-	      UCS_string cpy;
-	      lambda_ucs.copy_black (cpy, len);
-
+	      size_t strt = lambda_ucs.find_first_not_of(WHITESPACE);
+	      UCS_string cpy = UCS_string (lambda_ucs, strt, string::npos);
 	      if (lambda_ucs.back () != L'←') {
 		lambda_ucs = cpy;
 		basic_string<Unicode> lambda_basic (lambda_ucs);
@@ -253,7 +253,8 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 		  size_t arrow_offset = lambda_ucs.find_first_of (larrow);
 		  target_name =
 		    (arrow_offset == string::npos) ?
-		    lambda_ucs : UCS_string (lambda_ucs, arrow_offset, -1);
+		    lambda_ucs : UCS_string (lambda_ucs, arrow_offset,
+					     string::npos);
 		}
 		else target_name = ustr;
 

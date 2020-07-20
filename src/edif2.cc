@@ -99,6 +99,7 @@ static char *dir = NULL;
 static mqd_t mqd = -1;
 static bool is_lambda;
 static bool force_lambda = false;
+static const UCS_string WHITESPACE = " \n\t\r\f\v";
 
 #define EDIF2_DEFAULT \
   "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
@@ -240,10 +241,9 @@ read_file (const char *base_name, const char *fn)
       if (lambda_ucs.has_black ()) {
 	if (lambda_ucs.back () != L'←') {
 	  int len = 0;
-	  UCS_string cpy;
-	  lambda_ucs.copy_black (cpy, len);
+	  size_t strt = lambda_ucs.find_first_not_of(WHITESPACE);
+	   UCS_string cpy = UCS_string (lambda_ucs, strt, string::npos);
 	  lambda_ucs = cpy;
-
 	  UTF8_string lambda_utf (lambda_ucs);
 	  UTF8_string base_utf (base_name + strlen (LAMBDA_PREFIX));
 	  size_t base_len = base_utf.size ();
@@ -255,7 +255,7 @@ read_file (const char *base_name, const char *fn)
 	    size_t arrow_offset = lambda_ucs.find_first_of (larrow);
 	    target_name =
 	      (arrow_offset == string::npos) ?
-	      lambda_ucs : UCS_string (lambda_ucs, arrow_offset, -1);
+	      lambda_ucs : UCS_string (lambda_ucs, arrow_offset, string::npos);
 	  }
 	  else target_name = base_name + strlen (LAMBDA_PREFIX);
 	  
@@ -503,7 +503,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
 	if (is_lambda) {
 	  if (row == 0) continue;		// skip header
 	  else {
-	    utf = UCS_string (utf, 2, -1);	// skip assignment
+	    utf = UCS_string (utf, 2, string::npos);	// skip assignment
 	     tfile << base << "←{" << utf << "}";
 	     break;
 	  }
