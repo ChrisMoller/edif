@@ -505,7 +505,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
 	  if (row == 0) continue;		// skip header
 	  else {
 	    utf = UCS_string (utf, 2, string::npos);	// skip assignment
-	     tfile << base << "←{" << utf << "}";
+	     tfile << base << "←{" << utf << "}\n";
 	     break;
 	  }
 	}

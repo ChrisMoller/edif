@@ -15,4 +15,8 @@ BUILT_SOURCES = gitversion.h
 .FORCE:
 
 gitversion.h : .FORCE
-	git log  -1 --pretty='format:#define GIT_VERSION "%h %ci"' > $@
+	git log  -1 --pretty='format:#define GIT_VERSION "%h %ci"' > xxx
+	echo "" >> xxx
+	cmp -s xxx $@; \
+	rc=$$?; \
+	if [ $$rc -eq 0 ]; then rm xxx; else mv xxx $@; fi
