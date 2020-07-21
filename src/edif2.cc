@@ -3,6 +3,7 @@
     ISO/IEC Standard 13751, "Programming Language APL, Extended"
 
     Copyright (C) 2008-2013  Dr. Jürgen Sauermann
+    edif Copyright (C) 2020  Dr. C. H. L. Moller
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -582,6 +583,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
       APL_Integer nc = Quad_NC::get_NC(ustr);
       switch (nc) {
       case NC_FUNCTION:
+      case NC_OPERATOR:
       case NC_UNUSED_USER_NAME:
 	{
 	  if (watch_pid < 0) {

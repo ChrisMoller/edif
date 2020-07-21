@@ -3,6 +3,7 @@
     ISO/IEC Standard 13751, "Programming Language APL, Extended"
 
     Copyright (C) 2008-2013  Dr. Jürgen Sauermann
+    edif Copyright (C) 2020  Dr. C. H. L. Moller
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +26,8 @@
 #include <dirent.h>
 
 #include "Macro.hh"
+#include "Quad_CR.hh"
+
 
 #include<iostream>
 #include<fstream>
@@ -47,9 +50,6 @@
 #undef VERSION
 #include "../config.h"
 #endif
-
-#define APL_SUFFIX ".apl"
-#define LAMBDA_PREFIX "_lambda_"
 
 #define EDIF_DEFAULT "vi"
 static char *edif_default = NULL;
@@ -106,6 +106,142 @@ get_signature()
 }
 
 // export EDIF="vi"
+
+static bool
+get_var (const char *fn, const char *base, Value_P B, Shape &shape,
+	 bool &is_char)
+{
+  bool rc = false;
+  NamedObject *obj = NULL;
+  UCS_string symbol_name(*B.get());
+  while (symbol_name.back() <= ' ') symbol_name.pop_back();
+  if (symbol_name.size() != 0) {
+    obj = Workspace::lookup_existing_name(symbol_name);
+    if (obj) {
+      Value_P val = obj->get_value();
+      if (val->is_simple ()) {
+	if (!val->is_empty ()) {
+	  shape = val->get_shape ();
+	  is_char = val->is_char_array ();
+	  
+#if 0
+	  uRank rank = val->get_rank ();
+	  cerr << "rhorho  = " << rank << endl;
+
+	  cerr << "rho  = ";
+	  loop (r, rank) cerr << val->get_shape_item (r) << " ";
+	  cerr << endl;
+	  cerr << "count = " << val->element_count () << endl;
+
+	  if (val->is_scalar ())	cerr << "scalar\n";
+	  if (val->is_simple_scalar ())	cerr << "simple scalar\n";
+	  if (val->is_numeric_scalar ()) cerr << "numeric scalar\n";
+	  if (val->is_character_scalar ()) cerr << "character scalar\n";
+	  if (val->is_char_array ())	cerr << "character array\n";
+	  if (val->is_char_string ())	cerr << "character string\n";
+	  if (val->is_char_vector ())	cerr << "character vector\n";
+	  if (val->is_char_scalar ())	cerr << "character scalar\n";
+	  if (val->is_int_scalar ())	cerr << "int scalar\n";
+
+	  /****
+
+	  a←'abcdefghi'
+	  rhorho  = 1
+	  rho  = 9 
+	  count = 9
+	  character array
+	  character string
+	  character vector
+
+	  b←3 3⍴'abcdefghi'
+	  rhorho  = 2
+	  rho  = 3 3 
+	  count = 9
+	  character array
+
+	  v←⍳8
+	  rhorho  = 1
+	  rho  = 8 
+	  count = 8
+
+	  w←2 3 4⍴⍳24
+	  rhorho  = 3
+	  rho  = 2 3 4 
+	  count = 24
+
+	  c←8
+	  rhorho  = 0
+	  rho  = 
+	  count = 1
+	  scalar
+	  simple scalar
+	  numeric scalar
+	  int scalar
+
+	  d←6.7
+	  rhorho  = 0
+	  rho  = 
+	  count = 1
+	  scalar
+	  simple scalar
+	  numeric scalar
+
+	  f←v÷3
+	  rhorho  = 1
+	  rho  = 8 
+	  count = 8
+
+	  e='e'
+	  rhorho  = 0
+	  rho  = 
+	  count = 1
+	  scalar
+	  simple scalar
+	  character scalar
+	  character array
+	  character string
+	  character scalar
+
+
+	  ****/
+
+	  
+#endif
+	  PrintContext pctx = Workspace::get_PrintContext(PST_NONE);
+	  //pctx.set_style(PR_APL);
+	  PrintBuffer pb(*val, pctx, 0);
+    
+	  ofstream tfile;
+	  tfile.open (fn, ios::out);
+	  loop (l, pb.get_height ()) {
+	    UCS_string line = pb.get_line (l);
+	    /***
+	      pad char = APL character:  ⎕ (U+EEFB)
+	    ***/
+	    line.map_pad ();
+	    UTF8_string utf (line);
+	    tfile << utf << endl;
+	  }
+	  tfile.close ();
+	  rc = true;
+	}
+	else obj = NULL;
+      }
+      else cerr << "Nested variables are not supported\n";
+    }
+    if (!obj) {
+      ofstream tfile;
+      tfile.open (fn, ios::out);
+      if (is_lambda)
+	tfile << base << "←";
+      else
+	tfile << base << endl;
+      tfile.close ();
+      rc = true;
+    }
+  }
+  return rc;
+}
 
 static void
 get_fcn (const char *fn, const char *base, Value_P B)
@@ -217,6 +353,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     APL_Integer nc = Quad_NC::get_NC(ustr);
     switch (nc) {
     case NC_FUNCTION:
+    case NC_OPERATOR:
     case NC_UNUSED_USER_NAME:
       {
 	get_fcn (fn, base_name.c_str (), B);
@@ -295,11 +432,48 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
       break;
     case NC_VARIABLE:
       {
-	UCS_string ucs ("Variable editing not yet implemented.");
-	Value_P Z (ucs, LOC);
-	Z->check_value (LOC);
-	is_lambda = false;
-	return Token (TOK_APL_VALUE1, Z);
+	Shape shape;
+	bool is_char;
+	get_var (fn, base_name.c_str (), B, shape, is_char);
+
+	char *buf;
+	asprintf (&buf, "%s %s", edif, fn);
+	system (buf);
+	if (buf) free (buf);
+	
+	ifstream tfile;
+	tfile.open (fn, ios::in);
+	if (tfile.is_open ()) {
+	  UCS_string ucs (ustr);
+	  ucs.append (UTF8_string ("←"));
+	  uRank rank = shape.get_rank ();
+	  if (rank > 0) {
+	    loop (r, rank) {
+	      ostringstream cval;
+	      cval << shape.get_shape_item (r);
+	      UTF8_string uuu (cval.str ().c_str ());
+	      ucs.append (uuu);
+	      ucs.append(UNI_ASCII_SPACE);
+	    }
+	    ucs.append (UTF8_string ("⍴"));
+	  }
+	  if (is_char)ucs.append (UTF8_string ("'"));
+	  string line;
+	  while (getline (tfile, line)) {
+	    ucs.append_UTF8 (line.c_str ());
+	    ucs.append(UNI_ASCII_SPACE);
+	  }
+	  if (is_char)ucs.append (UTF8_string ("'"));
+	  tfile.close ();
+	  Command::do_APL_expression (ucs);
+	}
+	else {
+	  UCS_string ucs ("Error opening working file.");
+	  Value_P Z (ucs, LOC);
+	  Z->check_value (LOC);
+	  return Token (TOK_APL_VALUE1, Z);
+	}
+	cleanup (dir, base_name, fn);
       }
       break;
     default:
