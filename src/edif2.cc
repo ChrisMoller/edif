@@ -554,9 +554,28 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
   //  if (fn) free (fn);
 }
 
+static void
+edit_eval_handler(int sig, siginfo_t *si, void *data)
+{
+  close_fun (CAUSE_SHUTDOWN, NULL);
+}
+
 static Token
 eval_EB (const char *edif, Value_P B, APL_Integer idx)
 {
+  struct sigaction eval_act;
+  eval_act.sa_sigaction = edit_eval_handler;
+  sigemptyset (&eval_act.sa_mask);
+  eval_act.sa_flags = SA_SIGINFO | SA_RESTART;
+  sigaction (SIGCHLD, &eval_act, NULL);
+  sigaction (SIGABRT, &eval_act, NULL);
+  sigaction (SIGHUP,  &eval_act, NULL);
+  sigaction (SIGINT,  &eval_act, NULL);
+  sigaction (SIGQUIT, &eval_act, NULL);
+  sigaction (SIGSTOP, &eval_act, NULL);
+  sigaction (SIGTSTP, &eval_act, NULL);
+  sigaction (SIGSEGV, &eval_act, NULL);
+	      
   force_lambda = false;
   switch(idx) {
   case 1: force_lambda = true; break;
