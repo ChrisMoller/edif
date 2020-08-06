@@ -437,7 +437,7 @@ Copyright (C) 2012 Free Software Foundation, Inc.
 This config.status script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it."
 
-ac_pwd='/home/moller/personal/tinkering/apl/edif'
+ac_pwd='/home/moller/edif'
 srcdir='.'
 INSTALL='/usr/bin/install -c'
 MKDIR_P='/usr/bin/mkdir -p'
@@ -679,7 +679,7 @@ finish_cmds='PATH="\$PATH:/sbin" ldconfig -n $libdir'
 finish_eval=''
 hardcode_into_libs='yes'
 sys_lib_search_path_spec='/usr/lib/gcc/x86_64-redhat-linux/10 /usr/lib64 /lib64 /usr/lib /lib '
-configure_time_dlsearch_path='/lib64 /usr/lib64 /lib /usr/lib /usr/lib64/R/lib /usr/lib64/dyninst /usr/lib64/mysql /usr/lib64/octave/5.2.0 /usr/lib64/tcl8.6 '
+configure_time_dlsearch_path='/lib64 /usr/lib64 /lib /usr/lib /usr/lib64/R/lib /usr/local/lib/apl /usr/lib64/dyninst /usr/lib64/mysql /usr/lib64/octave/5.2.0 /usr/lib64/tcl8.6 '
 configure_time_lt_sys_library_path=''
 hardcode_action='immediate'
 enable_dlopen='unknown'
@@ -938,12 +938,12 @@ S["mkdir_p"]="$(MKDIR_P)"
 S["MKDIR_P"]="/usr/bin/mkdir -p"
 S["INSTALL_STRIP_PROGRAM"]="$(install_sh) -c -s"
 S["STRIP"]="strip"
-S["install_sh"]="${SHELL} /home/moller/personal/tinkering/apl/edif/install-sh"
-S["MAKEINFO"]="${SHELL} /home/moller/personal/tinkering/apl/edif/missing makeinfo"
-S["AUTOHEADER"]="${SHELL} /home/moller/personal/tinkering/apl/edif/missing autoheader"
-S["AUTOMAKE"]="${SHELL} /home/moller/personal/tinkering/apl/edif/missing automake-1.16"
-S["AUTOCONF"]="${SHELL} /home/moller/personal/tinkering/apl/edif/missing autoconf"
-S["ACLOCAL"]="${SHELL} /home/moller/personal/tinkering/apl/edif/missing aclocal-1.16"
+S["install_sh"]="${SHELL} /home/moller/edif/install-sh"
+S["MAKEINFO"]="${SHELL} /home/moller/edif/missing makeinfo"
+S["AUTOHEADER"]="${SHELL} /home/moller/edif/missing autoheader"
+S["AUTOMAKE"]="${SHELL} /home/moller/edif/missing automake-1.16"
+S["AUTOCONF"]="${SHELL} /home/moller/edif/missing autoconf"
+S["ACLOCAL"]="${SHELL} /home/moller/edif/missing aclocal-1.16"
 S["VERSION"]="2.2.0"
 S["PACKAGE"]="edif"
 S["CYGPATH_W"]="echo"

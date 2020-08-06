@@ -32,6 +32,8 @@
 #include<iostream>
 #include<fstream>
 #include<string>
+#include<regex>
+
 
 #include "Native_interface.hh"
 
@@ -58,8 +60,19 @@ using namespace std;
 static bool is_lambda = false;
 
 static char *dir = NULL;
-static const Function *function = NULL;
+static const Function *apl_function = NULL;
 static const UCS_string WHITESPACE = " \n\t\r\f\v";
+static const string vname ("([A-Za-z∆⍙][A-Za-z0-9_¯∆⍙]*)");
+static const string space ("[ \\t]+");
+static const string optspace ("[ \\t]*");
+static const string leftarrow ("←");
+static const string assign ("("+vname+optspace+leftarrow+optspace+")?");
+static const string locals ("((;"+vname+")*)");
+static const regex niladic (assign+vname+locals);
+static const regex monadic (assign+vname+space+vname+locals);
+static const regex dyadic  (assign+vname+space+vname+space+vname+locals);
+
+
 
 class NativeFunction;
 
@@ -244,7 +257,8 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
 }
 
 static void
-get_fcn (const char *fn, const char *base, Value_P B)
+get_fcn (const char *fn, const char *ifn, const char *base,
+	 Value_P B, string locals)
 {
   UCS_string symbol_name(*B.get());
   while (symbol_name.back() <= ' ')   symbol_name.pop_back();
@@ -254,7 +268,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
 	const Macro * macro =
 	  Macro::get_macro(static_cast<Macro::Macro_num>(m));
 	if (symbol_name == macro->get_name()) {
-	  function = macro;
+	  apl_function = macro;
 	  break;
 	}
       }
@@ -262,28 +276,36 @@ get_fcn (const char *fn, const char *base, Value_P B)
     else {  // maybe user defined function
       NamedObject * obj = Workspace::lookup_existing_name(symbol_name);
       if (obj && obj->is_user_defined()) {
-	function = obj->get_function();
-	if (function && function->get_exec_properties()[0])
-	  function = 0;
+	apl_function = obj->get_function();
+	if (apl_function && apl_function->get_exec_properties()[0])
+	  apl_function = 0;
       }
     }
   }
-  if (function != 0) {
-    is_lambda |= function->is_lambda();
-    const UCS_string ucs = function->canonical(false);
+  if (apl_function != 0) {
+    is_lambda |= apl_function->is_lambda();
+    const UCS_string ucs = apl_function->canonical(false);
     UCS_string_vector tlines;
     ucs.to_vector(tlines);
     ofstream tfile;
     
     tfile.open (fn, ios::out);
+    char *semiloc = NULL;
     loop(row, tlines.size()) {
       const UCS_string & line = tlines[row];
       UTF8_string utf (line);
       if (is_lambda) {
-	if (row == 0) continue;			// skip header
+	if (row == 0) {
+	  const char *fuck = utf.c_str ();
+	  if (semiloc) free (semiloc);
+	  semiloc = strdup (index ((char *)fuck, ';'));
+	}
 	else {
 	  utf = UCS_string (utf, 2, string::npos);	// skip assignment
-	  tfile << base << "←{" << utf << "}\n";
+	  tfile << ifn << "←{"
+		<< utf
+		<< (semiloc ?: "")
+		<< "}\n";
 	  break;
 	}
       }
@@ -295,7 +317,7 @@ get_fcn (const char *fn, const char *base, Value_P B)
     ofstream tfile;
     tfile.open (fn, ios::out);
     if (is_lambda)
-      tfile << base << "←";
+      tfile << ifn << "←{ " << locals << "}";
     else
       tfile << base << endl;
     tfile.close ();
@@ -322,6 +344,33 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
   if (fn) free (fn);
 }
 
+static string
+parse_header (UTF8_string base_name, string &locals)
+{
+  cmatch m;
+  string fcn ;
+  if (regex_match (base_name.c_str (), m, niladic)) {
+    size_t len = m[3].second - m[3].first;
+    string tgt (m[3].first);
+    fcn = tgt.substr (0, len);
+    len = m[4].second - m[4].first;
+    string ltgt (m[4].first);
+    locals = ltgt.substr (0, len);
+  }
+  else if (regex_match (base_name.c_str (), m, monadic)) {
+    size_t len = m[3].second - m[3].first;
+    string tgt (m[3].first);
+    fcn = tgt.substr (0, len);
+  }
+  else if (regex_match (base_name.c_str (), m, dyadic)) {
+    size_t len = m[4].second - m[4].first;
+    string tgt (m[4].first);
+    fcn = tgt.substr (0, len);
+  }
+  return fcn;
+}
+
+
 static Token
 eval_EB (const char *edif, Value_P B, APL_Integer idx)
 {
@@ -342,21 +391,29 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     break;
   }
 
-  function = NULL;
+  apl_function = NULL;
   if (B->is_char_string ()) {
     const UCS_string  ustr = B->get_UCS_ravel();
     UTF8_string base_name(ustr);
+    string locals;
+    string parsed_fcn_name = parse_header (base_name, locals);
 
     char *fn = NULL;
+#if 1
+    char *ifn = (char *)parsed_fcn_name.c_str ();
+    APL_Integer nc = Quad_NC::get_NC(UCS_string (ifn));
+    asprintf (&fn, "%s/%s.apl", dir, ifn);
+#else
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
-
     APL_Integer nc = Quad_NC::get_NC(ustr);
+#endif
+
     switch (nc) {
     case NC_FUNCTION:
     case NC_OPERATOR:
     case NC_UNUSED_USER_NAME:
       {
-	get_fcn (fn, base_name.c_str (), B);
+	get_fcn (fn, ifn, base_name.c_str (), B, locals);
 	char *buf;
 	asprintf (&buf, "%s %s", edif, fn);
 	system (buf);
