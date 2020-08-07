@@ -67,10 +67,11 @@ static const string space ("[ \\t]+");
 static const string optspace ("[ \\t]*");
 static const string leftarrow ("←");
 static const string assign ("("+vname+optspace+leftarrow+optspace+")?");
-static const string locals ("((;"+vname+")*)");
-static const regex niladic (assign+vname+locals);
-static const regex monadic (assign+vname+space+vname+locals);
-static const regex dyadic  (assign+vname+space+vname+space+vname+locals);
+static const string locals  ("((;.*)*)");
+static const regex niladic (assign+vname+optspace+locals);
+static const regex monadic (assign+vname+space+vname+optspace+locals);
+static const regex dyadic  (assign+vname+space+vname+space+
+			    vname+optspace+locals);
 
 
 

@@ -1,4 +1,4 @@
-AC_INIT([APL editor native function], [2.2.1], [moller@mollerware.com],[edif])
+AC_INIT([APL editor native function], [2.2.2], [moller@mollerware.com],[edif])
 AC_PREFIX_DEFAULT( /usr/local )
 AC_USE_SYSTEM_EXTENSIONS
 AC_CONFIG_HEADERS([config.h])
