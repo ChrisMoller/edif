@@ -91,6 +91,7 @@ close_fun (Cause cause, const NativeFunction * caller)
 	asprintf (&lfn, "%s/%s", dir, ent->d_name);
 	unlink (lfn);
 	free (lfn);
+	lfn = NULL;
       }
       closedir (path);
     } 
@@ -113,7 +114,10 @@ get_signature()
 	    (int)getuid (), (int)getpid ());
   mkdir (dir, 0700);
   char *ed = getenv ("EDIF");
-  if (edif_default) free (edif_default);
+  if (edif_default) {
+    free (edif_default);
+    edif_default = NULL;
+  }
   edif_default = strdup (ed ?: EDIF_DEFAULT);
 
   return SIG_Z_A_F2_B;
@@ -257,6 +261,32 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
   return rc;
 }
 
+
+/***
+
+    ⎕at
+
+    1 ⎕at '⎕cr'			1 2 0
+    1 ⎕at 'vi'			1 2 0
+    1 ⎕at 'll'			1 1 0
+    1 ⎕at 'mm'			0 1 0
+
+    2 ⎕at '⎕cr'			1970 1 1 0 0 0 0
+    2 ⎕at 'vi'			1970 1 1 0 0 0 0
+    2 ⎕at 'll'			2020 8 14 18 16 38 476
+    2 ⎕at 'mm'			2020 8 14 18 17 47 153    
+
+    3 ⎕at '⎕cr'			1 1 1 0
+    3 ⎕at 'vi'			1 1 1 0
+    3 ⎕at 'll'			0 0 0 0
+    3 ⎕at 'mm'			0 0 0 0
+
+    4 ⎕at '⎕cr'			0 0
+    4 ⎕at 'vi'			0 0
+    4 ⎕at 'll'			0 0
+    4 ⎕at 'mm'			0 0
+
+***/
 static void
 get_fcn (const char *fn, const char *ifn, const char *base,
 	 Value_P B, string locals)
@@ -278,7 +308,7 @@ get_fcn (const char *fn, const char *ifn, const char *base,
       NamedObject * obj = Workspace::lookup_existing_name(symbol_name);
       if (obj && obj->is_user_defined()) {
 	apl_function = obj->get_function();
-	if (apl_function && apl_function->get_exec_properties()[0])
+	if (apl_function && apl_function->get_exec_properties()[0]) 
 	  apl_function = 0;
       }
     }
@@ -298,8 +328,12 @@ get_fcn (const char *fn, const char *ifn, const char *base,
       if (is_lambda) {
 	if (row == 0) {
 	  const char *fuck = utf.c_str ();
-	  if (semiloc) free (semiloc);
-	  semiloc = strdup (index ((char *)fuck, ';'));
+	  if (semiloc) {
+	    free (semiloc);
+	    semiloc = NULL;
+	  }
+	  char *sl = index ((char *)fuck, ';');
+	  if (sl) semiloc = strdup (sl);
 	}
 	else {
 	  utf = UCS_string (utf, 2, string::npos);	// skip assignment
@@ -338,11 +372,15 @@ cleanup (char *dir, UTF8_string base_name, char *fn)
 	asprintf (&lfn, "%s/%s", dir, ent->d_name);
 	unlink (lfn);
 	free (lfn);
+	lfn = NULL;
       }
     }
     closedir (path);
   } 
-  if (fn) free (fn);
+  if (fn) {
+    free (fn);
+    fn = NULL;
+  }
 }
 
 static string
@@ -418,7 +456,10 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	char *buf;
 	asprintf (&buf, "%s %s", edif, fn);
 	system (buf);
-	if (buf) free (buf);
+	if (buf) {
+	  free (buf);
+	  buf = NULL;
+	}
 
 	ifstream tfile;
 	tfile.open (fn, ios::in);
@@ -497,7 +538,10 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	char *buf;
 	asprintf (&buf, "%s %s", edif, fn);
 	system (buf);
-	if (buf) free (buf);
+	if (buf) {
+	  free (buf);
+	  buf = NULL;
+	}
 	
 	ifstream tfile;
 	tfile.open (fn, ios::in);
@@ -558,7 +602,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 
 
 static Token
-eval_XB(Value_P X, Value_P B)
+eval_XB(Value_P X, Value_P B, const NativeFunction * caller)
 {
   APL_Integer val =
     (X->is_numeric_scalar()) ? X->get_sole_integer() : 0;
@@ -566,15 +610,15 @@ eval_XB(Value_P X, Value_P B)
 }
 
 static Token
-eval_B (Value_P B)
+eval_B (Value_P B, const NativeFunction * caller)
 {
   Value_P X = IntScalar (0, LOC);
-  return eval_XB (X, B);
+  return eval_XB (X, B, caller);
 }
 
 
 static Token
-eval_AXB(Value_P A, Value_P X, Value_P B)
+eval_AXB(Value_P A, Value_P X, Value_P B, const NativeFunction * caller)
 {
   
   if (A->is_char_string ()) {
@@ -584,7 +628,10 @@ eval_AXB(Value_P A, Value_P X, Value_P B)
     const UCS_string  ustr = A->get_UCS_ravel();
     UTF8_string edif (ustr);
     if (edif.c_str () && *(edif.c_str ())) {
-      if (edif_default) free (edif_default);
+      if (edif_default) {
+	free (edif_default);
+	edif_default = NULL;
+      }
       edif_default = strdup (edif.c_str ());
       return eval_EB (edif_default, B, val);
     }
@@ -604,10 +651,10 @@ eval_AXB(Value_P A, Value_P X, Value_P B)
 }
 
 static Token
-eval_AB (Value_P A, Value_P B)
+eval_AB (Value_P A, Value_P B, const NativeFunction * caller)
 {
   Value_P X = IntScalar (0, LOC);
-  return eval_AXB (A, X, B);
+  return eval_AXB (A, X, B, caller);
 }
 
 void *
