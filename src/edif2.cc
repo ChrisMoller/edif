@@ -449,8 +449,13 @@ get_signature()
     
     int inotify_fd = inotify_init ();
     FILE *inotify_fp = fdopen(inotify_fd, "r");
+#ifdef CHLM_VERSION
     int inotify_rc = inotify_add_watch (inotify_fd, dir,
 					IN_CREATE | IN_MODIFY);
+#else
+    // patch by Hans-Peter Sorge <hanspetersorge@netscape.net>
+    int inotify_rc = inotify_add_watch(inotify_fd, dir, IN_CLOSE_WRITE); 
+#endif
     // int inotify_rc = inotify_add_watch (inotify_fd, dir, IN_ALL_EVENTS);
     while (1) {
 #define BUF_LEN (10 * (sizeof(struct inotify_event) + NAME_MAX + 1))
