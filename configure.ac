@@ -45,6 +45,16 @@ AC_SUBST(APL_SOURCES)
 #AC_SUBST(PLPLOT_CFLAGS)
 #AC_SUBST(PLPLOT_LIBS)
 
+AC_ARG_WITH([libnotify], AS_HELP_STRING([--with-libnotify],
+[Build with libnotify]))
+
+if test "x$with_libnotify" = "xyes"; then
+  PKG_CHECK_MODULES([LIBNOTIFY],   [libnotify >= 0.7.9],
+  [AC_DEFINE([HAVE_LIBNOTIFY], [1], [Use libnotify])])
+  AC_SUBST(LIBNOTIFY_CFLAGS)
+  AC_SUBST(LIBNOTIFY_LIBS)
+fi
+
 AC_CONFIG_FILES([
   Makefile
   src/Makefile

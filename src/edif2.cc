@@ -19,6 +19,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// test
+
 #define USE_KIDS
 
 #include <error.h>
@@ -60,6 +62,10 @@
 #undef PACKAGE_VERSION
 #undef VERSION
 #include "../config.h"
+#endif
+
+#ifdef HAVE_LIBNOTIFY
+#include <libnotify/notify.h>
 #endif
 
 
@@ -109,6 +115,64 @@ static const UCS_string WHITESPACE = " \n\t\r\f\v";
     freed in close_fun
 ***/
 static char *edif2_default = NULL;
+
+#ifdef HAVE_LIBNOTIFY
+#if 0
+void *
+notify_thread (void *arg)
+{
+  notify_init ("app_name");
+  fprintf (stderr, "init completed\n");
+  NotifyNotification* n = notify_notification_new ("summary", "body", NULL);
+  notify_notification_set_timeout(n, 10000); // 10 seconds
+  fprintf (stderr, "showing\n");
+  notify_notification_show(n, 0);
+  fprintf (stderr, "returning\n");
+  pthread_exit(NULL);
+  return NULL;
+}
+#endif
+
+#if 0
+void
+notify_doit (const char *app_name,
+	     const char *summary,
+	     const char *body)
+{
+  pthread_t thread;
+  pthread_attr_t attr;
+
+  
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+  pthread_create (&thread, &attr, notify_thread, NULL);
+  pthread_attr_destroy(&attr);
+#if 0
+  notify_init (app_name);
+  NotifyNotification* n = notify_notification_new (summary, body, NULL);
+  notify_notification_set_timeout(n, 10000); // 10 seconds
+  notify_notification_show(n, 0);
+#endif
+}
+#endif
+
+void
+notify_start ()
+{
+  pid_t pid = fork ();
+  if (pid == 0) {
+    notify_init ("edif2");
+    NotifyNotification* n = notify_notification_new ("eval_EB", "start", NULL);
+    notify_notification_set_timeout(n, 10000); // 10 seconds
+    notify_notification_show(n, NULL);
+  }
+  else {
+    int wstatus;
+    waitpid (pid, &wstatus, 0);
+  }
+}
+
+#endif
 
 #ifdef USE_KIDS
 static void
@@ -468,10 +532,8 @@ get_signature()
 	resend:
 	  int mrc = mq_send (mqd, event->name, event->len, 0);
 	  if (mrc == -1) {
-	    if (errno == EINTR || errno == EAGAIN) {
-	      fprintf (stderr, "again\n");
+	    if (errno == EINTR || errno == EAGAIN)
 	      goto resend;
-	    }
 	    else perror ("internal mq_send error in edif2");
 	  }
 	}
@@ -625,6 +687,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	      return Token (TOK_APL_VALUE1, Z);
 	    }
 	    else if (pid > 0) {		// parent
+	      
 #ifdef USE_KIDS
 	      add_a_kid (pid);
 #else
@@ -645,6 +708,10 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	    }
 	    else if (pid == 0) {		// child
 	      char *buf;
+
+#ifdef HAVE_LIBNOTIFY
+	      notify_start ();
+#endif
 	      asprintf (&buf, "%s %s", edif, mfn);
 	      int erc = execl("/bin/sh", "sh", "-c", buf, (char *) 0);
 	      if (erc == -1) {
