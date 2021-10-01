@@ -450,10 +450,10 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     APL_Integer nc = Quad_NC::get_NC(ustr);
 #endif
 
-    switch (nc) {
-    case NC_FUNCTION:
-    case NC_OPERATOR:
-    case NC_UNUSED_USER_NAME:
+    switch (nc & NC_case_mask) {
+    case NC_FUNCTION & NC_case_mask:
+    case NC_OPERATOR & NC_case_mask:
+    case NC_UNUSED_USER_NAME & NC_case_mask:
       {
 	get_fcn (fn, ifn, base_name.c_str (), B, locals);
 	char *buf;
@@ -532,7 +532,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	cleanup (dir, base_name, fn);
       }
       break;
-    case NC_VARIABLE:
+    case NC_VARIABLE & NC_case_mask:
       {
 	Shape shape;
 	bool is_char;
