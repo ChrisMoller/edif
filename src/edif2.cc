@@ -19,8 +19,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// test
-
 #define USE_KIDS
 
 #include <error.h>
@@ -203,7 +201,8 @@ real_get_fcn (UCS_string symbol_name)
       }
     }
     else {  // maybe user defined function
-      NamedObject *obj = Workspace::lookup_existing_name(symbol_name);
+      NamedObject *obj
+	= (NamedObject *)Workspace::lookup_existing_name(symbol_name);
       if (obj && obj->is_user_defined()) {
 	function = obj->get_function();
 	if (function && function->get_exec_properties()[0]) function = 0;
@@ -298,7 +297,7 @@ read_file (const char *base_name, const char *fn)
     int cnt = 0;
     while (getline (tfile, line)) {
       ucs.append_UTF8 (line.c_str ());
-      ucs.append(UNI_ASCII_LF);
+      ucs.append(UNI_LF);
       if (cnt++ == 0) lambda_ucs.append_UTF8 (line.c_str ());
     }
     tfile.close ();
@@ -667,10 +666,10 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     char *mfn = get_fcn (fn, base_name.c_str (), B);
     if (mfn) {
       APL_Integer nc = Quad_NC::get_NC(ustr);
-      switch (nc) {
-      case NC_FUNCTION:
-      case NC_OPERATOR:
-      case NC_UNUSED_USER_NAME:
+      switch (nc & NC_case_mask) {
+      case NC_FUNCTION & NC_case_mask:
+      case NC_OPERATOR & NC_case_mask:
+      case NC_UNUSED_USER_NAME & NC_case_mask:
 	{
 	  if (watch_pid < 0) {
 	    UCS_string ucs ("Internal failure.");
@@ -726,7 +725,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  }
 	}
 	break;
-      case NC_VARIABLE:
+      case NC_VARIABLE & NC_case_mask:
 	{
 	  UCS_string ucs ("Variable editing not yet implemented.");
 	  Value_P Z (ucs, LOC);

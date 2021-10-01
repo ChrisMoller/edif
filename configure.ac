@@ -1,7 +1,7 @@
 AC_INIT([APL editor native function], [2.2.3], [moller@mollerware.com],[edif])
 AC_PREFIX_DEFAULT( /usr/local )
 AC_USE_SYSTEM_EXTENSIONS
-AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_HEADERS([edif_config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_MAINTAINER_MODE([enable])

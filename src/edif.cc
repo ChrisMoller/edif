@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#include "config.h"	// this should pick up the apl src version
+
 #include "Macro.hh"
 #include "Quad_CR.hh"
 
@@ -134,7 +136,7 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
   UCS_string symbol_name(*B.get());
   while (symbol_name.back() <= ' ') symbol_name.pop_back();
   if (symbol_name.size() != 0) {
-    obj = Workspace::lookup_existing_name(symbol_name);
+    obj = (NamedObject *)Workspace::lookup_existing_name(symbol_name);
     if (obj) {
       Value_P val = obj->get_value();
       if (val->is_simple ()) {
@@ -305,7 +307,8 @@ get_fcn (const char *fn, const char *ifn, const char *base,
       }
     }
     else {  // maybe user defined function
-      NamedObject * obj = Workspace::lookup_existing_name(symbol_name);
+      NamedObject * obj
+	= (NamedObject *)Workspace::lookup_existing_name(symbol_name);
       if (obj && obj->is_user_defined()) {
 	apl_function = obj->get_function();
 	if (apl_function && apl_function->get_exec_properties()[0]) 
@@ -470,7 +473,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  int cnt = 0;
 	  while (getline (tfile, line)) {
 	    ucs.append_UTF8 (line.c_str ());
-	    ucs.append(UNI_ASCII_LF);
+	    ucs.append(UNI_LF);
 	    if (cnt++ == 0) lambda_ucs.append_UTF8 (line.c_str ());
 	  }
 	  tfile.close ();
@@ -495,7 +498,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 		else target_name = ustr;
 
 		NamedObject * obj =
-		  Workspace::lookup_existing_name (target_name);
+		  (NamedObject *)Workspace::lookup_existing_name (target_name);
 		if (obj) {
 		  UCS_string erase_cmd(")ERASE ");
 		  erase_cmd.append (target_name);
@@ -555,7 +558,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	      cval << shape.get_shape_item (r);
 	      UTF8_string uuu (cval.str ().c_str ());
 	      ucs.append (uuu);
-	      ucs.append(UNI_ASCII_SPACE);
+	      ucs.append(UNI_SPACE);
 	    }
 	    ucs.append (UTF8_string ("⍴"));
 	  }
@@ -563,7 +566,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  string line;
 	  while (getline (tfile, line)) {
 	    ucs.append_UTF8 (line.c_str ());
-	    ucs.append(UNI_ASCII_SPACE);
+	    ucs.append(UNI_SPACE);
 	  }
 	  if (is_char)ucs.append (UTF8_string ("'"));
 	  tfile.close ();
