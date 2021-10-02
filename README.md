@@ -76,6 +76,17 @@ and edif2 with:
 Of course, you can use any function names you like and, as long as you use
 different names, both versions can be used at the same time.
 
+edif and edif2 can both be invoked with an option in what's usually used as the axis
+specifier.  An option of [1] forces edif into lambda mode:
+
+	    edif2 [1] 'fu'
+
+would open a boilerplate lambda function consisting of just the assignment ("fu←") and
+allowing the user to enter the body.  (E,g., "{⍺ + ⍵}")  (It's the user's responsibility
+to ensure that the body meets the requirements of a lambda.)
+
+
+
 So far as I can tell, edif doesn't interfere with Elias Mårtenson's 
 emacs APL mode, but I haven't thoroughly tested that.
 
