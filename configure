@@ -636,12 +636,12 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+APL_SOURCES
 LIBNOTIFY_LIBS
 LIBNOTIFY_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
-APL_SOURCES
 CXXCPP
 LT_SYS_LIBRARY_PATH
 OTOOL64
@@ -781,6 +781,7 @@ with_sysroot
 enable_libtool_lock
 with_apl_source_dir
 with_libnotify
+with_apl
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1447,6 +1448,7 @@ Optional Packages:
                           compiler's sysroot if not specified).
   --apl-source-dir=arg    Location of the GNU APL source code.
   --with-libnotify        Build with libnotify
+  --with-apl              Specify the APL source directory
 
 Some influential environment variables:
   CC          C compiler command
@@ -16098,28 +16100,6 @@ fi
 fi
 
 
-
-# AC_CHECK_HEADERS tries to compile the header but uses C instead of C++
-# maybe an autoconf expert knows how to make it work right
-#AC_CHECK_HEADERS([boost/spirit/include/qi.hpp], ,
-#  [echo "";
-#  echo ">>>> You need to install the boost packages. <<<<";
-#  echo ""; exit], AC_INCLUDES_DEFAULT)
-
-# should use AC_CHECK_HEADERS, but see above
-#AC_CHECK_FILE([/usr/include/boost/spirit/include/qi.hpp], ,
-#  [echo "";
-#  echo ">>>> You need to install the boost packages. <<<<";
-#  echo ""; exit])
-
-#PKG_CHECK_MODULES([PLPLOT], [plplotd >= 5.9.9], ,
-#  [echo "";
-#  echo ">>>> You need to install the plplot and plplot-devel packages. <<<<";
-#  echo ""; exit])
-#AC_SUBST(PLPLOT_CFLAGS)
-#AC_SUBST(PLPLOT_LIBS)
-
-
 # Check whether --with-libnotify was given.
 if test "${with_libnotify+set}" = set; then :
   withval=$with_libnotify;
@@ -16343,6 +16323,19 @@ fi
 
 
 fi
+
+
+# Check whether --with-apl was given.
+if test "${with_apl+set}" = set; then :
+  withval=$with_apl;
+fi
+
+
+if test "x$with_apl" != "x"; then
+  APL_SOURCES=$with_apl
+fi
+
+
 
 ac_config_files="$ac_config_files Makefile src/Makefile"
 

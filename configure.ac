@@ -23,28 +23,6 @@ AC_ARG_WITH([apl-source-dir],
   APL_SOURCES=$with_apl_source_dir
 fi
 
-AC_SUBST(APL_SOURCES)
-
-# AC_CHECK_HEADERS tries to compile the header but uses C instead of C++
-# maybe an autoconf expert knows how to make it work right
-#AC_CHECK_HEADERS([boost/spirit/include/qi.hpp], ,
-#  [echo "";
-#  echo ">>>> You need to install the boost packages. <<<<";
-#  echo ""; exit], AC_INCLUDES_DEFAULT)
-
-# should use AC_CHECK_HEADERS, but see above
-#AC_CHECK_FILE([/usr/include/boost/spirit/include/qi.hpp], ,
-#  [echo "";
-#  echo ">>>> You need to install the boost packages. <<<<";
-#  echo ""; exit])
-
-#PKG_CHECK_MODULES([PLPLOT], [plplotd >= 5.9.9], ,
-#  [echo "";
-#  echo ">>>> You need to install the plplot and plplot-devel packages. <<<<";
-#  echo ""; exit])
-#AC_SUBST(PLPLOT_CFLAGS)
-#AC_SUBST(PLPLOT_LIBS)
-
 AC_ARG_WITH([libnotify], AS_HELP_STRING([--with-libnotify],
 [Build with libnotify]))
 
@@ -54,6 +32,15 @@ if test "x$with_libnotify" = "xyes"; then
   AC_SUBST(LIBNOTIFY_CFLAGS)
   AC_SUBST(LIBNOTIFY_LIBS)
 fi
+
+AC_ARG_WITH([apl], AS_HELP_STRING([--with-apl],
+[Specify the APL source directory]))
+
+if test "x$with_apl" != "x"; then
+  APL_SOURCES=$with_apl
+fi
+
+AC_SUBST(APL_SOURCES)
 
 AC_CONFIG_FILES([
   Makefile
