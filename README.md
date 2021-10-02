@@ -83,8 +83,16 @@ specifier.  An option of [1] forces edif into lambda mode:
 
 would open a boilerplate lambda function consisting of just the assignment ("fu←") and
 allowing the user to enter the body.  (E,g., "{⍺ + ⍵}")  (It's the user's responsibility
-to ensure that the body meets the requirements of a lambda.)
+to ensure that the body meets the requirements of a lambda.)  Subsequent openings of the
+same lambda automatically go into lambda mode even if the option is omitted.
 
+   edif2 [2] ''
+
+returns the current GNU APL version while
+
+   edif2 [3] ''
+
+returns the git commit log signature of the most recent edif build.
 
 
 So far as I can tell, edif doesn't interfere with Elias Mårtenson's 
