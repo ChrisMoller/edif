@@ -88,7 +88,7 @@ Implimentation note:
 edif and edif2 work by storing an editable version of the specified
 function in:
 
-/var/run/user/<uid>/<pid>/<name>.apl  
+/var/run/user/&lt;uid&gt;/&lt;pid&gt;/&lt;name&gt;.apl  
 
 where <uid> is the user's userid, <pid> is the process id of the APL 
 session, and <name> is the function name.  This allows multiple users 
