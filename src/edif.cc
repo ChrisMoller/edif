@@ -233,7 +233,7 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
     
 	  ofstream tfile;
 	  tfile.open (fn, ios::out);
-	  loop (l, pb.get_height ()) {
+	  loop (l, pb.get_row_count ()) {
 	    UCS_string line = pb.get_line (l);
 	    /***
 	      pad char = APL character:  ⎕ (U+EEFB)
