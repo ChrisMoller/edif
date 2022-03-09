@@ -132,18 +132,54 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
 	 bool &is_char)
 {
   bool rc = false;
-  NamedObject *obj = NULL;
-  UCS_string symbol_name(*B.get());
-  while (symbol_name.back() <= ' ') symbol_name.pop_back();
-  if (symbol_name.size() != 0) {
-    obj = (NamedObject *)Workspace::lookup_existing_name(symbol_name);
-    if (obj) {
-      Value_P val = obj->get_value();
+  is_char = false;
+  Value *val = B.get ();
+  UCS_string str = val->get_UCS_ravel();
+  while (str.back() <= ' ') str.pop_back();
+  Symbol *sym = Workspace::lookup_existing_symbol (str);
+  if (sym) {
+    Value *val = sym->get_value ().get ();
+    if (val) {
       if (val->is_simple ()) {
 	if (!val->is_empty ()) {
-	  shape = val->get_shape ();
 	  is_char = val->is_char_array ();
-	  
+	  shape = val->get_shape ();
+	  PrintContext pctx = Workspace::get_PrintContext(PST_NONE);
+	  //pctx.set_style(PR_APL);
+	  PrintBuffer pb(*val, pctx, 0);
+    
+	  ofstream tfile;
+	  tfile.open (fn, ios::out);
+	  loop (l, pb.get_row_count ()) {
+	    UCS_string line = pb.get_line (l);
+	    /***
+	      pad char = APL character:  ⎕ (U+EEFB)
+	    ***/
+	    line.map_pad ();
+	    UTF8_string utf (line);
+	    tfile << utf << endl;
+	  }
+	  tfile.close ();
+	  rc = true;
+	}
+	else val = NULL;
+      }
+      else cerr << "Nested variables are not supported\n";
+    }
+    if (!val) {
+      ofstream tfile;
+      tfile.open (fn, ios::out);
+      if (is_lambda)
+	tfile << base << "←";
+      else
+	tfile << base << endl;
+      tfile.close ();
+      rc = true;
+    }
+  }
+  return rc;
+}
+
 #if 0
 	  uRank rank = val->get_rank ();
 	  cerr << "rhorho  = " << rank << endl;
@@ -227,41 +263,6 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
 
 	  
 #endif
-	  PrintContext pctx = Workspace::get_PrintContext(PST_NONE);
-	  //pctx.set_style(PR_APL);
-	  PrintBuffer pb(*val, pctx, 0);
-    
-	  ofstream tfile;
-	  tfile.open (fn, ios::out);
-	  loop (l, pb.get_height ()) {
-	    UCS_string line = pb.get_line (l);
-	    /***
-	      pad char = APL character:  ⎕ (U+EEFB)
-	    ***/
-	    line.map_pad ();
-	    UTF8_string utf (line);
-	    tfile << utf << endl;
-	  }
-	  tfile.close ();
-	  rc = true;
-	}
-	else obj = NULL;
-      }
-      else cerr << "Nested variables are not supported\n";
-    }
-    if (!obj) {
-      ofstream tfile;
-      tfile.open (fn, ios::out);
-      if (is_lambda)
-	tfile << base << "←";
-      else
-	tfile << base << endl;
-      tfile.close ();
-      rc = true;
-    }
-  }
-  return rc;
-}
 
 
 /***
