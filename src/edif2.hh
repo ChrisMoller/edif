@@ -40,8 +40,8 @@ static Token eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller);
 Token
 eval_fill_B(Value_P B, const NativeFunction * caller)
 {
-UCS_string ucs("eval_fill_B() called");
-Value_P Z(ucs, LOC);
+  UCS_string ucs(UTF8_string ("eval_fill_B() called"));
+  Value_P Z(ucs, LOC);
    Z->check_value(LOC);
    return Token(TOK_APL_VALUE1, Z);
 }
@@ -49,8 +49,8 @@ Value_P Z(ucs, LOC);
 Token
 eval_fill_AB(Value_P A, Value_P B, const NativeFunction * caller)
 {
-UCS_string ucs("eval_fill_B() called");
-Value_P Z(ucs, LOC);
+  UCS_string ucs(UTF8_string ("eval_fill_B() called"));
+  Value_P Z(ucs, LOC);
    Z->check_value(LOC);
    return Token(TOK_APL_VALUE1, Z);
 }
@@ -58,8 +58,8 @@ Value_P Z(ucs, LOC);
 Token
 eval_ident_Bx(Value_P B, sAxis x, const NativeFunction * caller)
 {
-UCS_string ucs("eval_ident_Bx() called");
-Value_P Z(ucs, LOC);
+  UCS_string ucs(UTF8_string ("eval_ident_Bx() called"));
+  Value_P Z(ucs, LOC);
    Z->check_value(LOC);
    return Token(TOK_APL_VALUE1, Z);
 }

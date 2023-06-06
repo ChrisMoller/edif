@@ -104,7 +104,7 @@ static char *dir = NULL;
 static mqd_t mqd = -1;
 static bool is_lambda;
 static bool force_lambda = false;
-static const UCS_string WHITESPACE = " \n\t\r\f\v";
+static const UCS_string WHITESPACE = UTF8_string (" \n\t\r\f\v");
 
 #define EDIF2_DEFAULT \
   "emacs --geometry=60x20 -background '#ffffcc' -font 'DejaVu Sans Mono-10'"
@@ -315,17 +315,18 @@ read_file (const char *base_name, const char *fn)
 
 	  UCS_string target_name;
 	  if (cmp != 0) {
-	    UCS_string larrow (UTF8_string ("←"));
+	    UCS_string larrow (UTF8_string (UTF8_string ("←")));
 	    size_t arrow_offset = lambda_ucs.find_first_of (larrow);
 	    target_name =
 	      (arrow_offset == string::npos) ?
 	      lambda_ucs : UCS_string (lambda_ucs, arrow_offset, string::npos);
 	  }
-	  else target_name = base_name + strlen (LAMBDA_PREFIX);
+	  else target_name =
+		 UCS_string (UTF8_string (base_name + strlen (LAMBDA_PREFIX)));
 	  
 	  Function *function = (Function *)real_get_fcn (target_name);
 	  if (function != NULL) {
-	    UCS_string erase_cmd(")ERASE ");
+	    UCS_string erase_cmd(UTF8_string (")ERASE "));
 	    erase_cmd.append (target_name);
 	    Bif_F1_EXECUTE::execute_command(erase_cmd);
 	  }
@@ -337,8 +338,13 @@ read_file (const char *base_name, const char *fn)
     else {
       if (ucs.has_black ()) {
 	int error_line = 0;
-	UCS_string creator (base_name);
+#if 1
+	UTF8_string creator_utf8(base_name);
+	UCS_string creator (creator_utf8);
+#else
+	UCS_string creator (UTF8_string (base_name));
 	UTF8_string creator_utf8(creator);
+#endif
 	UserFunction::fix (ucs,			// text
 			   error_line,		// err_line
 			   false,		// keep_existing
@@ -647,13 +653,13 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
   case 1: force_lambda = true; break;
   case 2: 
     {
-      Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+      Value_P vers (UCS_string(UTF8_string (PACKAGE_STRING)), LOC);
       return Token(TOK_APL_VALUE1, vers);
     }
     break;
   case 3: 
     {
-      Value_P vers (UCS_string(GIT_VERSION), LOC);
+      Value_P vers (UCS_string(UTF8_string (GIT_VERSION)), LOC);
       return Token(TOK_APL_VALUE1, vers);
     }
     break;
@@ -672,7 +678,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
       case NC_UNUSED_USER_NAME & NC_case_mask:
 	{
 	  if (watch_pid < 0) {
-	    UCS_string ucs ("Internal failure.");
+	    UCS_string ucs (UTF8_string ("Internal failure."));
 	    Value_P Z (ucs, LOC);
 	    Z->check_value (LOC);
 	    return Token (TOK_APL_VALUE1, Z);
@@ -680,7 +686,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  else {
 	    pid_t pid = fork ();
 	    if (pid < 0) {
-	      UCS_string ucs ("Editor process failed to fork.");
+	      UCS_string ucs (UTF8_string ("Editor process failed to fork."));
 	      Value_P Z (ucs, LOC);
 	      Z->check_value (LOC);
 	      return Token (TOK_APL_VALUE1, Z);
@@ -692,7 +698,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 #else
 	      int rc = setpgid (pid, group_pid);
 	      if (rc == -1) {
-		UCS_string ucs ("Internal failure in edif2.");
+		UCS_string ucs (UTF8_string ("Internal failure in edif2."));
 		Value_P Z (ucs, LOC);
 		Z->check_value (LOC);
 		return Token (TOK_APL_VALUE1, Z);
@@ -715,7 +721,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	      int erc = execl("/bin/sh", "sh", "-c", buf, (char *) 0);
 	      if (erc == -1) {
 		if (buf) free (buf);
-		UCS_string ucs ("Editor process failed to execute.");
+		UCS_string ucs (UTF8_string ("Editor process failed to execute."));
 		Value_P Z (ucs, LOC);
 		Z->check_value (LOC);
 		return Token (TOK_APL_VALUE1, Z);
@@ -727,7 +733,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	break;
       case NC_VARIABLE & NC_case_mask:
 	{
-	  UCS_string ucs ("Variable editing not yet implemented.");
+	  UCS_string ucs (UTF8_string ("Variable editing not yet implemented."));
 	  Value_P Z (ucs, LOC);
 	  Z->check_value (LOC);
 	  return Token (TOK_APL_VALUE1, Z);
@@ -735,7 +741,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	break;
       default:
 	{
-	  UCS_string ucs ("Unknown editing type requested.");
+	  UCS_string ucs (UTF8_string (UTF8_string ("Unknown editing type requested.")));
 	  Value_P Z (ucs, LOC);
 	  Z->check_value (LOC);
 	  return Token (TOK_APL_VALUE1, Z);
@@ -747,7 +753,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     return Token(TOK_APL_VALUE1, Str0_0 (LOC));	// in case nothing works
   }
   else {
-    UCS_string ucs ("Character string argument required.");
+    UCS_string ucs (UTF8_string ("Character string argument required."));
     Value_P Z (ucs, LOC);
     Z->check_value (LOC);
     return Token (TOK_APL_VALUE1, Z);
@@ -785,14 +791,14 @@ eval_AXB(Value_P A, Value_P X, Value_P B)
       return eval_EB (edif2_default, B, val);
     }
     else {
-      UCS_string ucs ("Invalid editor specification.");
+      UCS_string ucs (UTF8_string ("Invalid editor specification."));
       Value_P Z (ucs, LOC);
       Z->check_value (LOC);
       return Token (TOK_APL_VALUE1, Z);
     }
   }
   else {
-    UCS_string ucs ("The editor specification must be a string.");
+    UCS_string ucs (UTF8_string (UTF8_string ("The editor specification must be a string.")));
     Value_P Z (ucs, LOC);
     Z->check_value (LOC);
     return Token (TOK_APL_VALUE1, Z);

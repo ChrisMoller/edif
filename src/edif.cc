@@ -63,7 +63,7 @@ static bool is_lambda = false;
 
 static char *dir = NULL;
 static const Function *apl_function = NULL;
-static const UCS_string WHITESPACE = " \n\t\r\f\v";
+static const UCS_string WHITESPACE = UTF8_string (" \n\t\r\f\v");
 static const string vname ("([A-Za-z∆⍙][A-Za-z0-9_¯∆⍙]*)");
 static const string space ("[ \\t]+");
 static const string optspace ("[ \\t]*");
@@ -138,7 +138,9 @@ get_var (const char *fn, const char *base, Value_P B, Shape &shape,
   while (str.back() <= ' ') str.pop_back();
   Symbol *sym = Workspace::lookup_existing_symbol (str);
   if (sym) {
-    Value *val = sym->get_value ().get ();
+    Value *val = sym->get_val_wptr ();
+    //    Value *val = sym->get_val_wptr ().get ();
+    //    Value *val = sym->get_value ().get ();
     if (val) {
       if (val->is_simple ()) {
 	if (!val->is_empty ()) {
@@ -422,13 +424,13 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
   case 1: is_lambda = true; break;
   case 2: 
     {
-      Value_P vers (UCS_string(PACKAGE_STRING), LOC);
+      Value_P vers (UCS_string(UTF8_string (PACKAGE_STRING)), LOC);
       return Token(TOK_APL_VALUE1, vers);
     }
     break;
   case 3: 
     {
-      Value_P vers (UCS_string(GIT_VERSION), LOC);
+      Value_P vers (UCS_string(UTF8_string (GIT_VERSION)), LOC);
       return Token(TOK_APL_VALUE1, vers);
     }
     break;
@@ -444,7 +446,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     char *fn = NULL;
 #if 1
     char *ifn = (char *)parsed_fcn_name.c_str ();
-    APL_Integer nc = Quad_NC::get_NC(UCS_string (ifn));
+    APL_Integer nc = Quad_NC::get_NC(UCS_string (UTF8_string (ifn)));
     asprintf (&fn, "%s/%s.apl", dir, ifn);
 #else
     asprintf (&fn, "%s/%s.apl", dir, base_name.c_str ());
@@ -501,7 +503,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 		NamedObject * obj =
 		  (NamedObject *)Workspace::lookup_existing_name (target_name);
 		if (obj) {
-		  UCS_string erase_cmd(")ERASE ");
+		  UCS_string erase_cmd(UTF8_string (")ERASE "));
 		  erase_cmd.append (target_name);
 		  Bif_F1_EXECUTE::execute_command(erase_cmd);
 		}
@@ -524,7 +526,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  }
 	}
 	else {
-	  UCS_string ucs ("Error opening working file.");
+	  UCS_string ucs (UTF8_string ("Error opening working file."));
 	  Value_P Z (ucs, LOC);
 	  Z->check_value (LOC);
 	  is_lambda = false;
@@ -574,7 +576,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
 	  Command::do_APL_expression (ucs);
 	}
 	else {
-	  UCS_string ucs ("Error opening working file.");
+	  UCS_string ucs (UTF8_string ("Error opening working file."));
 	  Value_P Z (ucs, LOC);
 	  Z->check_value (LOC);
 	  return Token (TOK_APL_VALUE1, Z);
@@ -584,7 +586,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
       break;
     default:
       {
-	UCS_string ucs ("Unknown editing type requested.");
+	UCS_string ucs (UTF8_string ("Unknown editing type requested."));
 	Value_P Z (ucs, LOC);
 	Z->check_value (LOC);
 	is_lambda = false;
@@ -597,7 +599,7 @@ eval_EB (const char *edif, Value_P B, APL_Integer idx)
     return Token(TOK_APL_VALUE1, Str0_0 (LOC));	// in case nothing works
   }
   else {
-    UCS_string ucs ("Character string argument required.");
+    UCS_string ucs (UTF8_string ("Character string argument required."));
     Value_P Z (ucs, LOC);
     Z->check_value (LOC);
     return Token (TOK_APL_VALUE1, Z);
@@ -640,14 +642,14 @@ eval_AXB(Value_P A, Value_P X, Value_P B, const NativeFunction * caller)
       return eval_EB (edif_default, B, val);
     }
     else {
-      UCS_string ucs ("Invalid editor specification.");
+      UCS_string ucs (UTF8_string ("Invalid editor specification."));
       Value_P Z (ucs, LOC);
       Z->check_value (LOC);
       return Token (TOK_APL_VALUE1, Z);
     }
   }
   else {
-    UCS_string ucs ("The editor specification must be a string.");
+    UCS_string ucs (UTF8_string ("The editor specification must be a string."));
     Value_P Z (ucs, LOC);
     Z->check_value (LOC);
     return Token (TOK_APL_VALUE1, Z);
